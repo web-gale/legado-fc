@@ -1,146 +1,261 @@
-"use strict";
-const STORE="legado-fc-career-v1",THEME="legado-fc-theme";
-const positions=["POR","LD","LI","DFC","MCD","MC","MP","ED","EI","DC"],personalities=["Ambicioso","Leal","Profesional","Temperamental","Líder","Trabajador"],trainings=["Explosividad","Fuerza","Finalización","Creación","Defensa","Liderazgo","Recuperación"],phases=["Pretemporada","Entrenamiento","Liga","Copas","Internacional","Mercado de invierno","Fechas FIFA","Mercado de verano","Premios","Descanso"];
-const clubs=[
-  // --- PARAGUAY (Primera División) ---
-  { name: "Cerro Porteño", league: "Paraguay", p: 76 },
-  { name: "Olimpia", league: "Paraguay", p: 76 },
-  { name: "Libertad", league: "Paraguay", p: 77 },
-  { name: "Guaraní", league: "Paraguay", p: 70 },
-  { name: "Nacional", league: "Paraguay", p: 68 },
-  { name: "Sportivo Luqueño", league: "Paraguay", p: 66 },
-  { name: "Sol de América", league: "Paraguay", p: 65 },
-  { name: "Ameliano", league: "Paraguay", p: 66 },
-  { name: "Tacuary", league: "Paraguay", p: 63 },
-  { name: "2 de Mayo", league: "Paraguay", p: 65 },
-  { name: "General Caballero JLM", league: "Paraguay", p: 64 },
-  { name: "Trinidense", league: "Paraguay", p: 65 },
+/* ==========================================================================
+   LEGADO FC - MOTOR DE JUEGO & LÓGICA DE SIMULACIÓN
+   ========================================================================== */
 
-  // --- ARGENTINA (Liga Profesional) ---
-  { name: "River Plate", league: "Argentina", p: 82 },
-  { name: "Boca Juniors", league: "Argentina", p: 81 },
-  { name: "Racing Club", league: "Argentina", p: 78 },
-  { name: "Independiente", league: "Argentina", p: 75 },
-  { name: "San Lorenzo", league: "Argentina", p: 75 },
-  { name: "Estudiantes de La Plata", league: "Argentina", p: 77 },
-  { name: "Talleres de Córdoba", league: "Argentina", p: 76 },
-  { name: "Vélez Sarsfield", league: "Argentina", p: 74 },
-  { name: "Rosario Central", league: "Argentina", p: 73 },
-  { name: "Newell's Old Boys", league: "Argentina", p: 72 },
-  { name: "Defensa y Justicia", league: "Argentina", p: 74 },
-  { name: "Lanús", league: "Argentina", p: 73 },
+// --- ESTADO INICIAL / ESTRUCTURA ---
+const DEFAULT_STATE = {
+  version: 1,
+  created: false,
+  tab: "carrera",
+  player: {
+    nombre: "",
+    posicion: "DC",
+    atributos: {
+      definicion: 50,
+      tecnica: 50,
+      velocidad: 50,
+      fisico: 50,
+      mentalidad: 50,
+      resistencia: 50,
+      defensa: 50
+    },
+    edad: 14,
+    club: "Libre",
+    salario: 0,
+    contrato: 0,
+    golesTotales: 0,
+    asistenciasTotales: 0,
+    partidosTotales: 0,
+    titulos: [],
+    historial: []
+  },
+  noticias: []
+};
 
-  // --- BRASIL (Brasileirão Série A) ---
-  { name: "Flamengo", league: "Brasil", p: 84 },
-  { name: "Palmeiras", league: "Brasil", p: 85 },
-  { name: "São Paulo", league: "Brasil", p: 80 },
-  { name: "Fluminense", league: "Brasil", p: 80 },
-  { name: "Atlético Mineiro", league: "Brasil", p: 81 },
-  { name: "Botafogo", league: "Brasil", p: 79 },
-  { name: "Corinthians", league: "Brasil", p: 78 },
-  { name: "Grêmio", league: "Brasil", p: 78 },
-  { name: "Internacional", league: "Brasil", p: 78 },
-  { name: "Cruzeiro", league: "Brasil", p: 76 },
-  { name: "Athletico Paranaense", league: "Brasil", p: 77 },
-  { name: "Bahia", league: "Brasil", p: 75 },
+let state = JSON.parse(localStorage.getItem("legado_fc_save")) || JSON.parse(JSON.stringify(DEFAULT_STATE));
 
-  // --- INGLATERRA (Premier League) ---
-  { name: "Manchester City", league: "Inglaterra", p: 93 },
-  { name: "Arsenal", league: "Inglaterra", p: 90 },
-  { name: "Liverpool", league: "Inglaterra", p: 90 },
-  { name: "Real Madrid (UK Div)", league: "Inglaterra", p: 88 },
-  { name: "Chelsea", league: "Inglaterra", p: 85 },
-  { name: "Manchester United", league: "Inglaterra", p: 84 },
-  { name: "Tottenham Hotspur", league: "Inglaterra", p: 83 },
-  { name: "Newcastle United", league: "Inglaterra", p: 82 },
-  { name: "Aston Villa", league: "Inglaterra", p: 82 },
-  { name: "Brighton & Hove Albion", league: "Inglaterra", p: 79 },
+// --- PERSISTENCIA ---
+function save() {
+  localStorage.setItem("legado_fc_save", JSON.stringify(state));
+}
 
-  // --- ESPAÑA (LaLiga) ---
-  { name: "Real Madrid", league: "España", p: 93 },
-  { name: "FC Barcelona", league: "España", p: 91 },
-  { name: "Atlético de Madrid", league: "España", p: 87 },
-  { name: "Athletic Club", league: "España", p: 82 },
-  { name: "Real Sociedad", league: "España", p: 81 },
-  { name: "Girona FC", league: "España", p: 80 },
-  { name: "Sevilla FC", league: "España", p: 79 },
-  { name: "Real Betis", league: "España", p: 80 },
-  { name: "Villarreal CF", league: "España", p: 79 },
-  { name: "Valencia CF", league: "España", p: 76 },
+function resetGame() {
+  if (confirm("¿Estás seguro de reiniciar tu carrera? Se perderán los datos actual.")) {
+    state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    save();
+    render();
+  }
+}
 
-  // --- ITALIA (Serie A) ---
-  { name: "Inter de Milán", league: "Italia", p: 89 },
-  { name: "Juventus", league: "Italia", p: 86 },
-  { name: "AC Milan", league: "Italia", p: 85 },
-  { name: "SSC Napoli", league: "Italia", p: 84 },
-  { name: "AS Roma", league: "Italia", p: 82 },
-  { name: "Atalanta", league: "Italia", p: 83 },
-  { name: "SS Lazio", league: "Italia", p: 81 },
-  { name: "Fiorentina", league: "Italia", p: 79 },
+// --- CÁLCULOS MATEMÁTICOS ---
+function overall(p) {
+  const a = p.atributos;
+  const w = p.posicion === "POR"
+    ? { defensa: 0.35, fisico: 0.25, mentalidad: 0.2, resistencia: 0.1, pase: 0.1 }
+    : p.posicion === "DC"
+    ? { definicion: 0.3, tecnica: 0.18, velocidad: 0.14, fisico: 0.14, mentalidad: 0.16, resistencia: 0.08 }
+    : p.posicion === "MC"
+    ? { tecnica: 0.25, mentalidad: 0.2, resistencia: 0.2, definicion: 0.15, defensa: 0.2 }
+    : { defensa: 0.35, fisico: 0.25, mentalidad: 0.2, resistencia: 0.1, velocidad: 0.1 };
 
-  // --- ALEMANIA (Bundesliga) ---
-  { name: "Bayern Múnich", league: "Alemania", p: 92 },
-  { name: "Bayer Leverkusen", league: "Alemania", p: 88 },
-  { name: "Borussia Dortmund", league: "Alemania", p: 86 },
-  { name: "RB Leipzig", league: "Alemania", p: 84 },
-  { name: "Eintracht Frankfurt", league: "Alemania", p: 79 },
-  { name: "VfB Stuttgart", league: "Alemania", p: 80 },
+  let total = 0;
+  for (let attr in a) {
+    total += (a[attr] || 50) * (w[attr] || 0.14);
+  }
+  return Math.round(total);
+}
 
-  // --- FRANCIA (Ligue 1) ---
-  { name: "Paris Saint-Germain", league: "Francia", p: 90 },
-  { name: "AS Monaco", league: "Francia", p: 81 },
-  { name: "Olympique de Marsella", league: "Francia", p: 80 },
-  { name: "Lille OSC", league: "Francia", p: 79 },
-  { name: "Olympique de Lyon", league: "Francia", p: 78 },
+function valorMercado(p) {
+  const media = overall(p);
+  const factorEdad = Math.max(0.5, (35 - p.edad) / 15);
+  return Math.round(media * 150000 * factorEdad);
+}
 
-  // --- PORTUGAL (Primeira Liga) ---
-  { name: "SL Benfica", league: "Portugal", p: 83 },
-  { name: "FC Porto", league: "Portugal", p: 82 },
-  { name: "Sporting de Portugal", league: "Portugal", p: 83 },
+// --- SIMULACIÓN DE TEMPORADA ---
+function simulateSeason() {
+  if (state.player.edad >= 40) {
+    alert("¡Te has retirado del fútbol profesional a los 40 años! Revisa tu legado.");
+    return;
+  }
 
-  // --- OTROS CONTINENTES & OTROS PAÍSES ---
-  { name: "Liga de Quito", league: "Ecuador", p: 75 },
-  { name: "Independiente del Valle", league: "Ecuador", p: 76 },
-  { name: "Barcelona SC", league: "Ecuador", p: 73 },
-  { name: "Peñarol", league: "Uruguay", p: 74 },
-  { name: "Nacional de Montevideo", league: "Uruguay", p: 73 },
-  { name: "Colo-Colo", league: "Chile", p: 73 },
-  { name: "Universidad de Chile", league: "Chile", p: 71 },
-  { name: "Club América", league: "México", p: 77 },
-  { name: "Rayados de Monterrey", league: "México", p: 77 },
-  { name: "Tigres UANL", league: "México", p: 76 },
-  { name: "Inter Miami CF", league: "Estados Unidos", p: 76 },
-  { name: "LA Galaxy", league: "Estados Unidos", p: 72 },
-  { name: "Al-Hilal", league: "Arabia Saudita", p: 82 },
-  { name: "Al-Nassr", league: "Arabia Saudita", p: 80 },
-  { name: "Al-Ittihad", league: "Arabia Saudita", p: 78 }
-];
-const keys=["velocidad","fisico","resistencia","definicion","pase","vision","tecnica","defensa","mentalidad","liderazgo"],labels={velocidad:"Velocidad",fisico:"Físico",resistencia:"Resistencia",definicion:"Definición",pase:"Pase",vision:"Visión",tecnica:"Técnica",defensa:"Defensa",mentalidad:"Mentalidad",liderazgo:"Liderazgo"},focus={Explosividad:["velocidad","resistencia"],Fuerza:["fisico","resistencia"],Finalización:["definicion","tecnica"],Creación:["pase","vision","tecnica"],Defensa:["defensa","mentalidad","fisico"],Liderazgo:["liderazgo","mentalidad"],Recuperación:["resistencia"]};
-let tab="carrera",modal=false,state=load()||fresh("Álvaro Galeano","Paraguay","MP","Profesional","Profesional",20260803);
-function clamp(n,a=0,b=100){return Math.max(a,Math.min(b,n))}function rand(seed){let x=seed||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return((x>>>0)%10000)/10000}}function cash(n){return n>=1e6?`€${(n/1e6).toFixed(n>=1e7?0:1)} M`:`€${Math.round(n/1000)} mil`}function esc(x){return String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function overall(s){const a=s.attributes,w=s.position==="DC"?{definicion:.3,tecnica:.18,velocidad:.14,fisico:.14,mentalidad:.16,resistencia:.08}:s.position==="MP"?{pase:.2,vision:.22,tecnica:.22,definicion:.13,mentalidad:.13,velocidad:.1}:["DFC","MCD"].includes(s.position)?{defensa:.3,fisico:.2,mentalidad:.18,resistencia:.12,pase:.1,liderazgo:.1}:{velocidad:.18,resistencia:.14,pase:.14,tecnica:.17,mentalidad:.12,defensa:.12,definicion:.13};return Math.round(Object.entries(w).reduce((n,[k,v])=>n+a[k]*v,0))}
-function value(s){const age=s.age<=20?.6+(s.age-14)*.08:s.age<=27?1.08+(s.age-21)*.02:Math.max(.2,1.2-(s.age-27)*.085),base=Math.pow(Math.max(1,s.overall-43),2.18)*2600,pot=s.age<24?.78+s.attributes.potencial/240:1,last=s.history.at(-1),production=last?1+clamp(last.rating-6.4,-.5,2)*.12:1;return Math.max(0,Math.round(base*age*pot*(.78+s.form/220)*(.7+s.clubPrestige/260)*(1+s.popularity/900)*production))}
-function fresh(name,nationality,position,personality,difficulty,seed=Date.now()%2147483647){const r=rand(seed),a={velocidad:48,fisico:43,resistencia:49,definicion:43,pase:50,vision:49,tecnica:52,defensa:42,mentalidad:46,liderazgo:39,potencial:78+Math.floor(r()*17)};const s={version:1,status:"active",seed,season:1,age:14,name,nationality,position,personality,difficulty,club:"Cerro Porteño",league:"Paraguay",clubPrestige:55,contractYears:3,salary:18000,attributes:a,overall:0,form:55,fitness:94,morale:72,popularity:5,reputation:8,marketValue:120000,moneyEarned:0,nationalCaps:0,nationalGoals:0,titles:[],awards:[],records:{},history:[],news:[{id:"academy",type:"mundo",headline:`${name} firma su primer contrato juvenil`,detail:"La historia comienza a los 14 años.",season:1}],achievements:[],offers:[],trainingFocus:"Creación",riskMode:"equilibrado"};s.overall=overall(s);s.marketValue=value(s);return s}
-function save(){localStorage.setItem(STORE,JSON.stringify(state))}function load(){try{const x=JSON.parse(localStorage.getItem(STORE));return x&&x.version===1?x:null}catch{return null}}
-function simulate(){if(state.status==="retired")return;const r=rand(state.seed+state.season*7919),growth=state.age<=18?3.4:state.age<=22?2.5:state.age<=28?1.05:state.age<=32?.15:-.9-(state.age-32)*.18,diff=state.difficulty==="Promesa"?1.12:state.difficulty==="Leyenda"?.9:1,intensity=state.riskMode==="prudente"?.78:state.riskMode==="máximo"?1.22:1,pro=state.personality==="Profesional"||state.personality==="Trabajador"?1.15:1;
- keys.forEach(k=>{const f=focus[state.trainingFocus].includes(k)?1:.18,ceiling=Math.max(0,state.attributes.potencial-state.attributes[k]),delta=growth<0?growth*(.7+r()*.6):growth*f*diff*intensity*pro*(.45+ceiling/38)*(.75+r()*.5);state.attributes[k]=Math.round(clamp(state.attributes[k]+delta,20,99))});state.overall=overall(state);
- const risk=.025+(100-state.attributes.resistencia)/900+Math.max(0,state.age-30)/180+(state.riskMode==="máximo"?.06:state.riskMode==="prudente"?-.012:0)-(state.trainingFocus==="Recuperación"?.03:0);let injury="",missed=0;if(r()<risk){const x=r();injury=x>.94?"Rotura de ligamentos":x>.82?"Fractura":x>.57?"Lesión muscular":x>.28?"Esguince":"Sobrecarga";missed=injury==="Rotura de ligamentos"?22:injury==="Fractura"?15:injury==="Lesión muscular"?8:injury==="Esguince"?5:2;state.fitness=clamp(state.fitness-missed*1.6)}else state.fitness=clamp(state.fitness+(state.trainingFocus==="Recuperación"?8:3),35,100);
- const role=clamp((state.overall-state.clubPrestige+28)/55,.18,.96),pj=Math.max(2,Math.round((32-missed)*role*(.86+r()*.26))),mins=Math.round(pj*(state.overall>=state.clubPrestige-3?78:42+r()*22)),attack=state.position==="DC"?1:["MP","ED","EI"].includes(state.position)?.68:["MC","LD","LI"].includes(state.position)?.27:.07,g=Math.max(0,Math.round(pj*attack*(state.attributes.definicion/100)*(.28+r()*.44))),a=Math.max(0,Math.round(pj*(["MP","MC","ED","EI"].includes(state.position)?.42:.17)*(state.attributes.pase/100)*(.55+r()*.6))),rating=Number(clamp(5.7+(state.overall-state.clubPrestige)/27+g/Math.max(8,pj)*1.7+a/Math.max(8,pj)*1.2+(r()-.45)*.65,5.4,9.4).toFixed(2));state.form=Math.round(clamp(38+rating*5.2+r()*12));
- const caps=state.age>=17&&state.overall+state.form/6+state.clubPrestige/9>78+r()*15?2+Math.floor(r()*8):0;state.nationalCaps+=caps;state.nationalGoals+=Math.round(caps*attack*state.attributes.definicion/260);const titles=[];if(r()<.1+state.clubPrestige/420)titles.push(r()>.42?"Liga nacional":"Copa nacional");if(state.clubPrestige>74&&r()<.08)titles.push("Título continental");const awards=[];if(rating>7.65&&pj>20)awards.push(state.age<=21?"Mejor joven":"Jugador del año");if(g>24)awards.push("Máximo goleador");state.titles.push(...titles);state.awards.push(...awards);state.salary=Math.round(state.salary*(1.04+Math.max(0,rating-6.4)*.08));state.moneyEarned+=state.salary;state.popularity=Math.round(clamp(state.popularity+Math.max(0,g/8+a/12+titles.length*5+awards.length*8+caps/3)));
- const rec={season:state.season,age:state.age,club:state.club,league:state.league,appearances:pj,minutes:mins,goals:g,assists:a,rating,overall:state.overall,marketValue:0,popularity:state.popularity,injury,titles,awards};state.history.push(rec);state.marketValue=value(state);rec.marketValue=state.marketValue;state.records.goals=(state.records.goals||0)+g;state.records.assists=(state.records.assists||0)+a;state.records.appearances=(state.records.appearances||0)+pj;state.records.maxValue=Math.max(state.records.maxValue||0,state.marketValue);state.lastSummary=`${pj} PJ · ${g} G · ${a} A · ${rating} valoración${injury?` · ${injury}`:""}`;
- state.news.unshift({id:`s${state.season}`,type:"partido",headline:`${state.name} cierra el año con ${g} goles y ${a} asistencias`,detail:state.lastSummary,season:state.season});if(injury)state.news.unshift({id:`i${state.season}`,type:"lesión",headline:injury,detail:`Baja durante ${missed} partidos.`,season:state.season});if(caps)state.news.unshift({id:`n${state.season}`,type:"selección",headline:`${state.nationality} convoca a ${state.name}`,detail:`${caps} partidos internacionales.`,season:state.season});state.news=state.news.slice(0,20);state.offers=clubs.filter(c=>c.name!==state.club&&c.p<=state.overall+22&&c.p>=Math.max(48,state.clubPrestige-5)).sort(()=>r()-.5).slice(0,state.form>72?3:2).map(c=>({club:c.name,league:c.league,prestige:c.p,salary:Math.round(state.salary*(.95+c.p/62)*(.85+r()*.45)),fee:Math.round(state.marketValue*(.88+r()*.52)),years:2+Math.floor(r()*4)}));state.contractYears--;state.age++;state.season++;if(state.age>=42||(state.age>=35&&state.fitness+state.overall<110+r()*35))retire(false);save();render()}
-function acceptOffer(i){const o=state.offers[i],old=state.club;state.club=o.club;state.league=o.league;state.clubPrestige=o.prestige;state.salary=o.salary;state.contractYears=o.years;state.offers=[];state.records.maxTransfer=Math.max(state.records.maxTransfer||0,o.fee);state.news.unshift({id:`t${state.season}`,type:"mercado",headline:`${state.name} ficha por ${o.club}`,detail:`${old} recibe ${cash(o.fee)}.`,season:state.season});save();render()}
-function renew(){state.contractYears=3;state.salary=Math.round(state.salary*1.18);state.offers=[];save();render()}function retire(confirmFirst=true){if(confirmFirst&&state.age<32)return;if(confirmFirst&&!confirm("¿Cerrar definitivamente esta carrera?"))return;state.status="retired";const score=Math.round((state.records.goals||0)*1.5+(state.records.assists||0)+(state.records.appearances||0)*.18+state.titles.length*18+state.awards.length*25+state.nationalCaps*.5+state.overall*2+state.popularity*1.5);state.records.legacyScore=score;state.finalLegend=score>900?"Inmortal del fútbol":score>650?"Leyenda nacional":score>450?"Estrella internacional":score>260?"Ídolo del club":score>120?"Profesional respetado":"Promesa que dejó huella";tab="legado";save();render()}
-function stat(l,v,s=""){return`<article class="stat"><span>${l}</span><strong>${v}</strong>${s?`<small>${s}</small>`:""}</article>`}function bars(){return keys.map(k=>`<div class="bar"><span>${labels[k]}</span><i><b style="width:${state.attributes[k]}%"></b></i><strong>${state.attributes[k]}</strong></div>`).join("")}
-function header(){return`<header class="top"><button class="brand" data-tab="carrera">LEGADO <em>FC</em></button><nav>${["carrera","temporada","mercado","estadísticas"].map(x=>`<button data-tab="${x}" class="${tab===x?"active":""}">${x[0].toUpperCase()+x.slice(1)}</button>`).join("")}</nav><div class="meta"><span>⚡ <b>${Math.round(state.fitness)}</b></span><span>▣ ${state.age} años</span><span>◉ ${cash(state.moneyEarned)}</span><button class="icon" id="theme">◐</button></div></header><div class="mobile-nav">${["carrera","temporada","mercado","estadísticas"].map(x=>`<button data-tab="${x}" class="${tab===x?"active":""}">${x.slice(0,4)}</button>`).join("")}</div>`}
-function career(){return`<section class="dashboard"><div class="hero"><p class="eyebrow">DECISIÓN DE CARRERA</p><h1>Tu carrera.<br>Tus decisiones.<br><span>Tu legado.</span></h1><p>${esc(state.name)} está escribiendo su historia en ${esc(state.club)}. La próxima temporada puede cambiarlo todo.</p><button class="primary" data-tab="${state.status==="active"?"temporada":"legado"}">${state.status==="active"?"Continuar carrera":"Ver legado"} →</button><button class="text-btn" id="new">Crear nueva carrera ↗</button></div><div class="career"><div class="player-head"><div class="crest">◇</div><div><h2>${esc(state.name)}</h2><p><b>${state.age} AÑOS</b> · ${state.position} · ${esc(state.club)}</p></div></div><div class="career-grid"><article><p class="eyebrow">PERFIL TÉCNICO</p><div class="radar">${bars()}</div></article><article><p class="eyebrow">PRÓXIMO PASO</p><h2>${state.lastSummary?"Temporada completada":"Tu historia te espera"}</h2><p class="sub">${state.lastSummary||"Entrena, compite y decide el rumbo de tu carrera."}</p><button class="decision cyan" data-tab="temporada"><strong>✓</strong><span><b>PREPARAR TEMPORADA</b><small>Entrenamiento y riesgo</small></span><em>DESARROLLO<br>DINÁMICO</em></button><button class="decision orange" data-tab="mercado"><strong>⌁</strong><span><b>EXPLORAR MERCADO</b><small>${state.offers.length?state.offers.length+" ofertas activas":"Construye reputación"}</small></span><em>DECISIÓN<br>CLAVE</em></button></article></div></div><div class="kpis">${stat("MEDIA",state.overall)}${stat("POTENCIAL",state.attributes.potencial)}${stat("VALOR",cash(state.marketValue))}${stat("POPULARIDAD",state.popularity)}</div></section>`}
-function season(){return`<section class="page"><div class="page-head"><div><p class="eyebrow">TEMPORADA ${state.season} · ${state.age} AÑOS</p><h1 class="page-title">Prepara el próximo año</h1><p class="sub">Elige una especialización y cuánto riesgo quieres asumir.</p></div><span class="eyebrow">● GUARDADO LOCAL</span></div><div class="layout"><section class="panel"><h2>Foco de entrenamiento</h2><p class="sub">Solo el área elegida recibe el crecimiento principal.</p><div class="training">${trainings.map(x=>`<button data-training="${x}" class="${state.trainingFocus===x?"selected":""}"><b>${x}</b><small>${x==="Recuperación"?"Menos riesgo":"Especialización dirigida"}</small></button>`).join("")}</div><h2>Intensidad</h2><div class="segments">${["prudente","equilibrado","máximo"].map(x=>`<button data-risk="${x}" class="${state.riskMode===x?"selected":""}">${x}</button>`).join("")}</div></section><aside class="panel"><p class="eyebrow">CALENDARIO ANUAL</p><ol class="calendar">${phases.map((x,i)=>`<li><span>${String(i+1).padStart(2,"0")}</span>${x}</li>`).join("")}</ol><div class="notice"><b>Riesgo ${state.riskMode}</b><br>Edad, resistencia, carga e historial determinan las lesiones.</div><button class="primary" id="simulate" style="width:100%" ${state.status==="retired"?"disabled":""}>${state.status==="retired"?"Carrera finalizada":"Simular temporada "+state.season} →</button>${state.age>=32&&state.status==="active"?'<button class="text-btn" id="retire">Retirarse voluntariamente</button>':""}</aside></div></section>`}
-function market(){const current=`<article class="offer current"><span>CLUB ACTUAL</span><h2>${esc(state.club)}</h2><p>${esc(state.league)} · Prestigio ${state.clubPrestige}</p><strong>${cash(state.salary)}</strong><small>salario anual</small><button id="renew">Renovar 3 años</button></article>`,offers=state.offers.map((o,i)=>`<article class="offer"><span>OFERTA</span><h2>${esc(o.club)}</h2><p>${esc(o.league)} · Prestigio ${o.prestige}</p><strong>${cash(o.salary)}</strong><small>${o.years} años · traspaso ${cash(o.fee)}</small><button data-offer="${i}">Aceptar oferta</button></article>`).join("")||'<article class="offer"><h2>Sin ofertas formales</h2><p>Completa una temporada sólida para atraer clubes.</p></article>';return`<section class="page"><div class="page-head"><div><p class="eyebrow">MERCADO Y CONTRATO</p><h1 class="page-title">Elige tu próximo desafío</h1></div>${stat("CONTRATO",state.contractYears+" años",cash(state.salary)+" / año")}</div><div class="offers">${current}${offers}</div><section class="panel news"><h2>Noticias del mundo</h2>${state.news.slice(0,8).map(n=>`<article class="news-row"><span>${n.type}</span><div><h3>${esc(n.headline)}</h3><p>${esc(n.detail)}</p></div><time>T${n.season}</time></article>`).join("")}</section></section>`}
-function statistics(){const rows=[...state.history].reverse().map(s=>`<tr><td>${s.age}</td><td>${esc(s.club)}</td><td>${s.appearances}</td><td>${s.minutes}</td><td>${s.goals}</td><td>${s.assists}</td><td>${s.rating}</td><td>${s.overall}</td><td>${cash(s.marketValue)}</td></tr>`).join("");return`<section class="page"><div class="page-head"><div><p class="eyebrow">CENTRO DE RENDIMIENTO</p><h1 class="page-title">Tu carrera en datos</h1></div><div class="actions"><button class="secondary" id="export">Exportar JSON</button><button class="secondary" id="import">Importar JSON</button></div></div><div class="stats">${stat("PARTIDOS",state.records.appearances||0)}${stat("GOLES",state.records.goals||0)}${stat("ASISTENCIAS",state.records.assists||0)}${stat("SELECCIÓN",state.nationalCaps)}<section class="panel attributes"><p class="eyebrow">ATRIBUTOS</p><div class="radar">${bars()}</div></section></div><section class="panel history"><table><thead><tr><th>Edad</th><th>Club</th><th>PJ</th><th>Min</th><th>G</th><th>A</th><th>Val.</th><th>Media</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>${!rows?'<p class="sub">Simula tu primera temporada para abrir el historial.</p>':""}</section></section>`}
-function legacy(){return`<section class="page legacy"><p class="eyebrow">INFORME PROFESIONAL DE CARRERA</p><h1 class="page-title">${state.status==="retired"?state.finalLegend:"Tu legado aún se está escribiendo"}</h1><p class="sub">${state.status==="retired"?`${esc(state.name)} se retira a los ${state.age} años después de ${state.history.length} temporadas.`:"Al retirarte, aquí aparecerá el expediente definitivo de tu vida futbolística."}</p><div class="score"><span>PUNTUACIÓN DE LEGADO</span><strong>${state.records.legacyScore||"—"}</strong></div><div class="legacy-grid">${stat("CLUBES",new Set(state.history.map(x=>x.club).concat(state.club)).size)}${stat("TÍTULOS",state.titles.length)}${stat("PREMIOS",state.awards.length)}${stat("VALOR MÁXIMO",cash(state.records.maxValue||state.marketValue))}${stat("MAYOR TRASPASO",cash(state.records.maxTransfer||0))}${stat("DINERO GANADO",cash(state.moneyEarned))}${stat("POPULARIDAD",state.popularity)}${stat("SELECCIÓN",state.nationalCaps+" PJ")}</div></section>`}
-function newModal(){return`<div class="modal-bg"><section class="modal"><button class="close" id="close">×</button><p class="eyebrow">NUEVO LEGADO</p><h2>Crea tu futbolista</h2><p class="sub">Empieza a los 14 años. Cada elección afectará tu carrera.</p><div class="form"><label>Nombre<input id="name" value="Álvaro Galeano" maxlength="40"></label><label>Nacionalidad<input id="nationality" value="Paraguay" maxlength="30"></label><label>Posición<select id="position">${positions.map(x=>`<option>${x}</option>`).join("")}</select></label><label>Personalidad<select id="personality">${personalities.map(x=>`<option>${x}</option>`).join("")}</select></label><label>Dificultad<select id="difficulty"><option>Promesa</option><option selected>Profesional</option><option>Leyenda</option></select></label></div><button class="primary" id="create" style="width:100%">Comenzar carrera →</button></section></div>`}
-function render(){document.documentElement.dataset.theme=localStorage.getItem(THEME)||"dark";document.getElementById("app").innerHTML=`<div class="shell">${header()}${tab==="carrera"?career():tab==="temporada"?season():tab==="mercado"?market():tab==="estadísticas"?statistics():legacy()}<footer class="footer"><span>LEGADO FC · EDICIÓN GITHUB PAGES</span><span>Guardado automático en este navegador</span><button id="new-footer">Nueva carrera</button></footer>${modal?newModal():""}</div>`;bind()}
-function bind(){document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});document.getElementById("theme").onclick=()=>{const t=document.documentElement.dataset.theme==="dark"?"light":"dark";localStorage.setItem(THEME,t);render()};document.querySelectorAll("[data-training]").forEach(b=>b.onclick=()=>{state.trainingFocus=b.dataset.training;save();render()});document.querySelectorAll("[data-risk]").forEach(b=>b.onclick=()=>{state.riskMode=b.dataset.risk;save();render()});document.querySelectorAll("[data-offer]").forEach(b=>b.onclick=()=>acceptOffer(Number(b.dataset.offer)));["new","new-footer"].forEach(id=>{const b=document.getElementById(id);if(b)b.onclick=()=>{modal=true;render()}});const sim=document.getElementById("simulate");if(sim)sim.onclick=simulate;const ren=document.getElementById("renew");if(ren)ren.onclick=renew;const ret=document.getElementById("retire");if(ret)ret.onclick=()=>retire(true);const close=document.getElementById("close");if(close)close.onclick=()=>{modal=false;render()};const create=document.getElementById("create");if(create)create.onclick=()=>{const name=document.getElementById("name").value.trim(),nationality=document.getElementById("nationality").value.trim();if(!name||!nationality)return;state=fresh(name,nationality,document.getElementById("position").value,document.getElementById("personality").value,document.getElementById("difficulty").value);modal=false;tab="carrera";save();render()};const ex=document.getElementById("export");if(ex)ex.onclick=exportGame;const im=document.getElementById("import");if(im)im.onclick=()=>document.getElementById("import-file").click()}
-function exportGame(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`legado-fc-${state.name.toLowerCase().replace(/\s+/g,"-")}.json`;a.click();URL.revokeObjectURL(a.href)}document.getElementById("import-file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(x.version!==1||!Array.isArray(x.history))throw 0;state=x;save();tab="carrera";render()}catch{alert("El archivo no contiene una carrera válida de LEGADO FC.")}};r.readAsText(f);e.target.value=""};
-if(!localStorage.getItem(THEME))localStorage.setItem(THEME,"light");
-render();
+  const p = state.player;
+  p.edad += 1;
+
+  // Mejora de atributos según edad
+  const crecimiento = p.edad <= 23 ? 3 : p.edad <= 29 ? 1 : -2;
+  for (let attr in p.atributos) {
+    p.atributos[attr] = Math.min(99, Math.max(30, p.atributos[attr] + crecimiento));
+  }
+
+  // Partidos y rendimiento
+  const partidos = Math.floor(Math.random() * 15) + 25;
+  const goles = p.posicion === "POR" ? 0 : Math.floor(Math.random() * (p.atributos.definicion / 4));
+  const asistencias = p.posicion === "POR" ? 0 : Math.floor(Math.random() * (p.atributos.tecnica / 5));
+
+  p.partidosTotales += partidos;
+  p.golesTotales += goles;
+  p.asistenciasTotales += asistencias;
+
+  p.historial.push({
+    edad: p.edad,
+    club: p.club,
+    partidos,
+    goles,
+    asistencias,
+    media: overall(p)
+  });
+
+  state.noticias.unshift(`Temporada finalizada: Jugaste ${partidos} partidos, marcaste ${goles} goles y diste ${asistencias} asistencias.`);
+  save();
+  render();
+}
+
+// --- RENDERIZADO Y UI ---
+function render() {
+  const app = document.getElementById("app");
+  if (!app) return;
+
+  if (!state.created) {
+    app.innerHTML = `
+      <div class="card">
+        <h1>Crear tu Futbolista</h1>
+        <form id="create-form">
+          <label>Nombre del Jugador:</label>
+          <input type="text" id="p-nombre" required placeholder="Ej. Álvaro Galeano">
+          
+          <label>Posición:</label>
+          <select id="p-posicion">
+            <option value="DC">Delantero Centro (DC)</option>
+            <option value="MC">Centrocampista (MC)</option>
+            <option value="DFC">Defensa Central (DFC)</option>
+            <option value="POR">Portero (POR)</option>
+          </select>
+          
+          <button type="submit" class="btn">Comenzar Carrera</button>
+        </form>
+      </div>
+    `;
+
+    document.getElementById("create-form").onsubmit = (e) => {
+      e.preventDefault();
+      state.player.nombre = document.getElementById("p-nombre").value;
+      state.player.posicion = document.getElementById("p-posicion").value;
+      state.player.club = "Club Local";
+      state.created = true;
+      save();
+      render();
+    };
+    return;
+  }
+
+  const p = state.player;
+  const media = overall(p);
+
+  app.innerHTML = `
+    <header>
+      <h1>LEGADO FC</h1>
+      <p>${p.nombre} | ${p.posicion} | ${p.edad} Años | OVR: <strong>${media}</strong></p>
+    </header>
+
+    <nav class="tabs">
+      <button onclick="setTab('carrera')" class="${state.tab === 'carrera' ? 'active' : ''}">Carrera</button>
+      <button onclick="setTab('estadisticas')" class="${state.tab === 'estadisticas' ? 'active' : ''}">Estadísticas</button>
+      <button onclick="setTab('opciones')" class="${state.tab === 'opciones' ? 'active' : ''}">Opciones</button>
+    </nav>
+
+    <main class="content">
+      ${
+        state.tab === 'carrera' ? `
+          <div class="card">
+            <h2>Estado Actual</h2>
+            <p><strong>Club:</strong> ${p.club}</p>
+            <p><strong>Valor de Mercado:</strong> $${valorMercado(p).toLocaleString()}</p>
+            <button onclick="simulateSeason()" class="btn btn-primary">Simular Siguiente Temporada</button>
+          </div>
+          <div class="card">
+            <h3>Noticias Recientes</h3>
+            <ul>${state.noticias.map(n => `<li>${n}</li>`).join('')}</ul>
+          </div>
+        ` : state.tab === 'estadisticas' ? `
+          <div class="card">
+            <h2>Historial de Carrera</h2>
+            <p>Partidos Totales: ${p.partidosTotales} | Goles: ${p.golesTotales} | Asistencias: ${p.asistenciasTotales}</p>
+            <table>
+              <thead>
+                <tr><th>Edad</th><th>Club</th><th>PJ</th><th>Goles</th><th>Asist.</th><th>Media</th></tr>
+              </thead>
+              <tbody>
+                ${p.historial.map(h => `
+                  <tr>
+                    <td>${h.edad}</td>
+                    <td>${h.club}</td>
+                    <td>${h.partidos}</td>
+                    <td>${h.goles}</td>
+                    <td>${h.asistencias}</td>
+                    <td>${h.media}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : `
+          <div class="card">
+            <h2>Gestión de Partida</h2>
+            <button onclick="exportSave()" class="btn">Exportar Partida (.JSON)</button>
+            <button onclick="triggerImport()" class="btn">Importar Partida (.JSON)</button>
+            <button onclick="resetGame()" class="btn btn-danger">Reiniciar Carrera</button>
+          </div>
+        `
+      }
+    </main>
+  `;
+}
+
+// --- MANEJO DE PESTAÑAS Y ARCHIVOS ---
+function setTab(tabName) {
+  state.tab = tabName;
+  save();
+  render();
+}
+
+function exportSave() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `legado_fc_${state.player.nombre.replace(/\s+/g, '_')}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+}
+
+function triggerImport() {
+  const fileInput = document.getElementById("import-file");
+  if (fileInput) fileInput.click();
+}
+
+// Inicialización de evento de archivo seguro
+document.addEventListener("DOMContentLoaded", () => {
+  const fileInput = document.getElementById("import-file");
+  if (fileInput) {
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const loadedState = JSON.parse(evt.target.result);
+          if (!loadedState.player || !loadedState.version) throw new Error();
+          state = loadedState;
+          save();
+          render();
+          alert("Partida cargada exitosamente.");
+        } catch {
+          alert("El archivo no es una partida válida de LEGADO FC.");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = "";
+    };
+  }
+  render();
+});
