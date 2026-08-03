@@ -746,6 +746,85 @@ nav button.active:after {
 .modal > p {
   color: var(--muted);
 }
+.season-report-backdrop {
+  z-index: 70;
+  background:
+    radial-gradient(circle at 50% 5%, rgba(255, 138, 61, 0.18), transparent 34%),
+    rgba(0, 8, 16, 0.9);
+}
+.season-report {
+  width: min(980px, 100%);
+  border-color: var(--orange);
+  box-shadow: 0 0 80px rgba(255, 138, 61, 0.16);
+}
+.season-report h2 {
+  font-family: Impact, "Arial Narrow", sans-serif;
+  font-size: clamp(42px, 6vw, 72px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  margin: 0;
+  text-transform: uppercase;
+}
+.report-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 26px 0 14px;
+}
+.honours-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.honours {
+  border: 1px solid var(--border);
+  padding: 20px;
+  background: color-mix(in srgb, var(--panel2) 72%, transparent);
+}
+.team-honours {
+  border-top: 3px solid var(--orange);
+}
+.player-honours {
+  border-top: 3px solid var(--cyan);
+}
+.honours-kicker {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.honours h3 {
+  margin: 9px 0 16px;
+  font-size: 21px;
+}
+.honour {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+.honour > b {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  font-size: 25px;
+}
+.honour strong,
+.honour small {
+  display: block;
+}
+.honour small {
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
 .x {
   position: absolute;
   right: 15px;
@@ -901,6 +980,16 @@ footer button {
   }
   footer span:first-child {
     display: none;
+  }
+  .report-stats,
+  .honours-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .season-report {
+    padding: 24px 16px;
+  }
+  .honours-grid {
+    grid-template-columns: 1fr;
   }
 }
 @media (prefers-reduced-motion: reduce) {

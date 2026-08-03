@@ -59,3 +59,35 @@ test("Fácil garantiza máxima participación, éxito y producción por posició
     }
   });
 });
+
+test("Fácil varía goles y asistencias entre temporadas sin usar cifras fijas", () => {
+  const totals = new Set<string>();
+  for (let seed = 8100; seed < 8112; seed++) {
+    const free = createCareer({
+      name: "Goleador variable",
+      nationality: "España",
+      position: "DC",
+      personality: "Profesional",
+      difficulty: "Promesa",
+    }, seed);
+    const season = simulateSeason(acceptOffer(free, free.offers[0])).history.at(-1)!;
+    totals.add(`${season.goals}-${season.assists}`);
+    assert.ok(season.goals / season.appearances >= 0.9);
+    assert.ok(season.assists / season.appearances >= 0.5);
+  }
+  assert.ok(totals.size >= 5);
+});
+
+test("los títulos de temporada usan nombres reales de las competiciones", () => {
+  const free = createCareer({
+    name: "Campeón de prueba",
+    nationality: "España",
+    position: "MP",
+    personality: "Profesional",
+    difficulty: "Promesa",
+  }, 9201);
+  const season = simulateSeason(acceptOffer(free, free.offers[0])).history.at(-1)!;
+  assert.ok(season.titles.includes("LaLiga Hypermotion"));
+  assert.equal(season.titles.includes("Liga nacional"), false);
+  assert.equal(season.titles.includes("Copa nacional"), false);
+});

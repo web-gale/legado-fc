@@ -195,45 +195,92 @@ function leagueMatchLimit(league: string) {
   return 34;
 }
 
-const easyProduction: Record<Position, { goals: number; assists: number }> = {
-  POR: { goals: 0, assists: 0.08 },
-  LD: { goals: 0.16, assists: 0.55 },
-  LI: { goals: 0.16, assists: 0.55 },
-  DFC: { goals: 0.12, assists: 0.2 },
-  MCD: { goals: 0.28, assists: 0.55 },
-  MC: { goals: 0.55, assists: 0.75 },
-  MP: { goals: 0.9, assists: 0.8 },
-  ED: { goals: 0.9, assists: 0.65 },
-  EI: { goals: 0.9, assists: 0.65 },
-  DC: { goals: 1.05, assists: 0.5 },
+const easyProduction: Record<
+  Position,
+  { goals: [number, number]; assists: [number, number] }
+> = {
+  POR: { goals: [0, 0.03], assists: [0.05, 0.16] },
+  LD: { goals: [0.16, 0.34], assists: [0.55, 0.85] },
+  LI: { goals: [0.16, 0.34], assists: [0.55, 0.85] },
+  DFC: { goals: [0.1, 0.24], assists: [0.18, 0.38] },
+  MCD: { goals: [0.28, 0.5], assists: [0.55, 0.82] },
+  MC: { goals: [0.55, 0.82], assists: [0.75, 1.05] },
+  MP: { goals: [0.9, 1.28], assists: [0.62, 0.98] },
+  ED: { goals: [0.9, 1.3], assists: [0.52, 0.86] },
+  EI: { goals: [0.9, 1.3], assists: [0.52, 0.86] },
+  DC: { goals: [1, 1.48], assists: [0.5, 0.78] },
 };
 
-function easyTeamTitles(s: CareerState, r: () => number) {
-  const secondDivision = /2ª|Série B|Serie B|Ligue 2|Championship|Hypermotion|First Division|Expansión/.test(
-    s.league,
+type CompetitionSet = {
+  league: string;
+  cups: string[];
+  continental: string[];
+};
+
+function competitionsFor(league: string): CompetitionSet {
+  const second = /2ª|Série B|Serie B|Ligue 2|Championship|Hypermotion|First Division|Expansión|2\. Bundesliga|USL/.test(
+    league,
   );
-  if (secondDivision) {
-    return [
-      "Campeón de segunda división",
-      ...(s.clubPrestige >= 52 && r() < 0.72 ? ["Copa nacional"] : []),
-    ];
+  if (second) {
+    if (league.startsWith("Paraguay")) return { league: "Campeón División Intermedia", cups: [], continental: [] };
+    if (league.startsWith("Argentina")) return { league: "Campeón Primera Nacional", cups: ["Copa Argentina"], continental: [] };
+    if (league.startsWith("Brasil")) return { league: "Brasileirão Série B", cups: ["Copa do Brasil"], continental: [] };
+    if (league.startsWith("Uruguay")) return { league: "Campeonato Uruguayo de Segunda División Profesional", cups: ["Copa AUF Uruguay"], continental: [] };
+    if (league.startsWith("Ecuador")) return { league: "LigaPro Serie B", cups: ["Copa Ecuador"], continental: [] };
+    if (league.startsWith("España")) return { league: "LaLiga Hypermotion", cups: ["Copa del Rey"], continental: [] };
+    if (league.startsWith("Inglaterra")) return { league: "EFL Championship", cups: ["FA Cup", "EFL Cup (Carabao Cup)"], continental: [] };
+    if (league.startsWith("Italia")) return { league: "Serie B", cups: ["Coppa Italia"], continental: [] };
+    if (league.startsWith("Alemania")) return { league: "2. Bundesliga", cups: ["DFB-Pokal"], continental: [] };
+    if (league.startsWith("Francia")) return { league: "Ligue 2", cups: ["Coupe de France"], continental: [] };
+    if (league.startsWith("México")) return { league: "Liga de Expansión MX", cups: ["Campeón de Campeones de Expansión"], continental: [] };
+    if (league.startsWith("Estados Unidos")) return { league: "USL Championship", cups: ["USL Cup"], continental: [] };
+    return { league: "Saudi First Division League", cups: [], continental: [] };
   }
-  return [
-    s.clubPrestige >= 66 ? "Liga nacional" : "Copa nacional",
-    ...(s.clubPrestige >= 62 && r() < 0.88 ? ["Copa nacional"] : []),
-    ...(s.clubPrestige >= 74 && r() < 0.76 ? ["Título continental"] : []),
-    ...(s.clubPrestige >= 84 && r() < 0.48 ? ["Mundial de Clubes"] : []),
-  ].filter((title, index, all) => all.indexOf(title) === index);
+  if (league.startsWith("Paraguay")) return { league: "Torneo Apertura", cups: ["Torneo Clausura", "Copa Paraguay", "Supercopa Paraguay"], continental: ["Copa CONMEBOL Libertadores", "Copa CONMEBOL Sudamericana", "Recopa Sudamericana"] };
+  if (league.startsWith("Argentina")) return { league: "Liga Profesional de Fútbol", cups: ["Copa de la Liga Profesional", "Copa Argentina", "Supercopa Argentina", "Trofeo de Campeones", "Supercopa Internacional"], continental: ["Copa CONMEBOL Libertadores", "Copa CONMEBOL Sudamericana", "Recopa Sudamericana"] };
+  if (league.startsWith("Brasil")) return { league: "Brasileirão Série A", cups: ["Copa do Brasil", "Supercopa do Brasil", "Campeonato Estadual"], continental: ["Copa CONMEBOL Libertadores", "Copa CONMEBOL Sudamericana", "Recopa Sudamericana"] };
+  if (league.startsWith("Uruguay")) return { league: "Campeonato Uruguayo", cups: ["Torneo Intermedio", "Copa AUF Uruguay", "Supercopa Uruguaya"], continental: ["Copa CONMEBOL Libertadores", "Copa CONMEBOL Sudamericana", "Recopa Sudamericana"] };
+  if (league.startsWith("Ecuador")) return { league: "LigaPro Serie A", cups: ["Copa Ecuador", "Supercopa de Ecuador"], continental: ["Copa CONMEBOL Libertadores", "Copa CONMEBOL Sudamericana", "Recopa Sudamericana"] };
+  if (league.startsWith("España")) return { league: "LaLiga EA Sports", cups: ["Copa del Rey", "Supercopa de España"], continental: ["UEFA Champions League", "UEFA Europa League", "UEFA Conference League", "Supercopa de la UEFA"] };
+  if (league.startsWith("Inglaterra")) return { league: "Premier League", cups: ["FA Cup", "EFL Cup (Carabao Cup)", "FA Community Shield"], continental: ["UEFA Champions League", "UEFA Europa League", "UEFA Conference League", "Supercopa de la UEFA"] };
+  if (league.startsWith("Italia")) return { league: "Serie A (Scudetto)", cups: ["Coppa Italia", "Supercoppa Italiana"], continental: ["UEFA Champions League", "UEFA Europa League", "UEFA Conference League", "Supercopa de la UEFA"] };
+  if (league.startsWith("Alemania")) return { league: "Bundesliga", cups: ["DFB-Pokal", "DFL-Supercup"], continental: ["UEFA Champions League", "UEFA Europa League", "UEFA Conference League", "Supercopa de la UEFA"] };
+  if (league.startsWith("Francia")) return { league: "Ligue 1", cups: ["Coupe de France", "Trophée des Champions"], continental: ["UEFA Champions League", "UEFA Europa League", "UEFA Conference League", "Supercopa de la UEFA"] };
+  if (league.startsWith("México")) return { league: "Liga MX", cups: ["Campeón de Campeones", "Supercopa de la Liga MX", "Leagues Cup"], continental: ["Copa de Campeones de la CONCACAF"] };
+  if (league.startsWith("Estados Unidos")) return { league: "MLS Cup", cups: ["Supporters' Shield", "Campeón de Conferencia", "Lamar Hunt U.S. Open Cup", "Leagues Cup"], continental: ["Copa de Campeones de la CONCACAF"] };
+  return { league: "Saudi Pro League", cups: ["Copa del Rey (King Cup)", "Supercopa de Arabia Saudita", "Copa de Campeones del Club Árabe (UAFA)"], continental: ["AFC Champions League Elite", "AFC Champions League 2"] };
 }
 
-function easyIndividualAwards(position: Position) {
+function easyTeamTitles(s: CareerState, r: () => number) {
+  const set = competitionsFor(s.league);
+  const titles = [set.league];
+  if (set.cups.length && r() < 0.92)
+    titles.push(set.cups[Math.floor(r() * set.cups.length)]);
+  if (set.cups.length > 1 && s.clubPrestige >= 68 && r() < 0.62)
+    titles.push(set.cups[Math.floor(r() * set.cups.length)]);
+  if (set.continental.length && s.clubPrestige >= 65 && r() < 0.82)
+    titles.push(set.continental[Math.floor(r() * set.continental.length)]);
+  if (s.clubPrestige >= 78 && r() < 0.56)
+    titles.push(r() < 0.68 ? "Mundial de Clubes de la FIFA" : "Copa Intercontinental de la FIFA");
+  return titles.filter((title, index, all) => all.indexOf(title) === index);
+}
+
+function regionalPlayerAward(league: string) {
+  if (/Paraguay|Argentina|Brasil|Uruguay|Ecuador/.test(league)) return "Rey de América · Mejor jugador de Sudamérica";
+  if (/España|Inglaterra|Italia|Alemania|Francia/.test(league)) return "Jugador del Año de la UEFA";
+  if (/México|Estados Unidos/.test(league)) return "Mejor Jugador de la CONCACAF";
+  return "Futbolista Asiático del Año (AFC)";
+}
+
+function easyIndividualAwards(position: Position, league: string, age: number, r: () => number) {
+  const global = r() < 0.55 ? "Balón de Oro" : "Premio The Best FIFA";
   if (position === "POR")
-    return ["Mejor guardameta", "Guante de Oro", "Equipo ideal de la temporada"];
+    return ["Guante de Oro / Mejor guardameta", "Equipo Ideal de la Temporada", regionalPlayerAward(league), ...(age <= 21 ? ["Mejor Jugador Joven / Revelación"] : [])];
   if (["DFC", "LD", "LI", "MCD"].includes(position))
-    return ["Mejor defensor", "Jugador del año", "Equipo ideal de la temporada"];
+    return ["Mejor defensor de la temporada", "Equipo Ideal de la Temporada", regionalPlayerAward(league), ...(r() < 0.45 ? [global] : [])];
   if (["MC", "MP"].includes(position))
-    return ["Mejor asistente", "Jugador del año", "Equipo ideal de la temporada"];
-  return ["Máximo goleador", "Jugador del año", "Equipo ideal de la temporada"];
+    return ["Máximo asistente de la liga", "MVP / Jugador de la Temporada", "Equipo Ideal de la Temporada", regionalPlayerAward(league), global];
+  return ["Máximo Goleador / Bota de Oro", "MVP / Jugador de la Temporada", "Equipo Ideal de la Temporada", regionalPlayerAward(league), global, ...(r() < 0.55 ? ["Trofeo Gerd Müller"] : [])];
 }
 export function createCareer(
   input: NewCareer,
@@ -479,11 +526,17 @@ export function simulateSeason(current: CareerState): CareerState {
       ),
     ),
     easyTarget = easyProduction[s.position],
+    easyGoalRate =
+      easyTarget.goals[0] +
+      random() * (easyTarget.goals[1] - easyTarget.goals[0]),
+    easyAssistRate =
+      easyTarget.assists[0] +
+      random() * (easyTarget.assists[1] - easyTarget.assists[0]),
     g = easy
-      ? Math.max(generatedGoals, Math.ceil(pj * easyTarget.goals))
+      ? Math.max(generatedGoals, Math.round(pj * easyGoalRate))
       : generatedGoals,
     a = easy
-      ? Math.max(generatedAssists, Math.ceil(pj * easyTarget.assists))
+      ? Math.max(generatedAssists, Math.round(pj * easyAssistRate))
       : generatedAssists,
     cards = Math.round(
       pj *
@@ -512,12 +565,23 @@ export function simulateSeason(current: CareerState): CareerState {
     ng = Math.round((caps * attack * s.attributes.definicion) / 260);
   s.nationalCaps += caps;
   s.nationalGoals += ng;
+  const competitionSet = competitionsFor(s.league);
   const titles: string[] = easy ? easyTeamTitles(s, random) : [];
   if (!easy && random() < 0.1 + s.clubPrestige / 420)
-    titles.push(random() > 0.42 ? "Liga nacional" : "Copa nacional");
-  if (!easy && s.clubPrestige > 74 && random() < 0.08)
-    titles.push("Título continental");
-  const awards: string[] = easy ? easyIndividualAwards(s.position) : [];
+    titles.push(
+      random() > 0.42 || !competitionSet.cups.length
+        ? competitionSet.league
+        : competitionSet.cups[Math.floor(random() * competitionSet.cups.length)],
+    );
+  if (!easy && s.clubPrestige > 74 && competitionSet.continental.length && random() < 0.08)
+    titles.push(
+      competitionSet.continental[
+        Math.floor(random() * competitionSet.continental.length)
+      ],
+    );
+  const awards: string[] = easy
+    ? easyIndividualAwards(s.position, s.league, s.age, random)
+    : [];
   if (!easy && rating > 7.65 && pj > 20)
     awards.push(s.age <= 21 ? "Mejor joven" : "Jugador del año");
   if (!easy && g > 24) awards.push("Máximo goleador");
