@@ -1,7 +1,120 @@
 "use strict";
 const STORE="legado-fc-career-v1",THEME="legado-fc-theme";
 const positions=["POR","LD","LI","DFC","MCD","MC","MP","ED","EI","DC"],personalities=["Ambicioso","Leal","Profesional","Temperamental","Líder","Trabajador"],trainings=["Explosividad","Fuerza","Finalización","Creación","Defensa","Liderazgo","Recuperación"],phases=["Pretemporada","Entrenamiento","Liga","Copas","Internacional","Mercado de invierno","Fechas FIFA","Mercado de verano","Premios","Descanso"];
-const clubs=[{name:"Cerro Porteño",league:"Paraguay",p:55},{name:"Olimpia",league:"Paraguay",p:57},{name:"Libertad",league:"Paraguay",p:54},{name:"Río de la Plata",league:"Argentina",p:72},{name:"São Paulo Aurora",league:"Brasil",p:78},{name:"Monterrey Norte",league:"México",p:66},{name:"Lisboa Águias",league:"Portugal",p:76},{name:"Sevilla Real",league:"España",p:83},{name:"London Borough",league:"Inglaterra",p:91},{name:"Milano Rosso",league:"Italia",p:88},{name:"Múnich Stern",league:"Alemania",p:92},{name:"Paris Lumière",league:"Francia",p:90}];
+const clubs=[
+  // --- PARAGUAY (Primera División) ---
+  { name: "Cerro Porteño", league: "Paraguay", p: 76 },
+  { name: "Olimpia", league: "Paraguay", p: 76 },
+  { name: "Libertad", league: "Paraguay", p: 77 },
+  { name: "Guaraní", league: "Paraguay", p: 70 },
+  { name: "Nacional", league: "Paraguay", p: 68 },
+  { name: "Sportivo Luqueño", league: "Paraguay", p: 66 },
+  { name: "Sol de América", league: "Paraguay", p: 65 },
+  { name: "Ameliano", league: "Paraguay", p: 66 },
+  { name: "Tacuary", league: "Paraguay", p: 63 },
+  { name: "2 de Mayo", league: "Paraguay", p: 65 },
+  { name: "General Caballero JLM", league: "Paraguay", p: 64 },
+  { name: "Trinidense", league: "Paraguay", p: 65 },
+
+  // --- ARGENTINA (Liga Profesional) ---
+  { name: "River Plate", league: "Argentina", p: 82 },
+  { name: "Boca Juniors", league: "Argentina", p: 81 },
+  { name: "Racing Club", league: "Argentina", p: 78 },
+  { name: "Independiente", league: "Argentina", p: 75 },
+  { name: "San Lorenzo", league: "Argentina", p: 75 },
+  { name: "Estudiantes de La Plata", league: "Argentina", p: 77 },
+  { name: "Talleres de Córdoba", league: "Argentina", p: 76 },
+  { name: "Vélez Sarsfield", league: "Argentina", p: 74 },
+  { name: "Rosario Central", league: "Argentina", p: 73 },
+  { name: "Newell's Old Boys", league: "Argentina", p: 72 },
+  { name: "Defensa y Justicia", league: "Argentina", p: 74 },
+  { name: "Lanús", league: "Argentina", p: 73 },
+
+  // --- BRASIL (Brasileirão Série A) ---
+  { name: "Flamengo", league: "Brasil", p: 84 },
+  { name: "Palmeiras", league: "Brasil", p: 85 },
+  { name: "São Paulo", league: "Brasil", p: 80 },
+  { name: "Fluminense", league: "Brasil", p: 80 },
+  { name: "Atlético Mineiro", league: "Brasil", p: 81 },
+  { name: "Botafogo", league: "Brasil", p: 79 },
+  { name: "Corinthians", league: "Brasil", p: 78 },
+  { name: "Grêmio", league: "Brasil", p: 78 },
+  { name: "Internacional", league: "Brasil", p: 78 },
+  { name: "Cruzeiro", league: "Brasil", p: 76 },
+  { name: "Athletico Paranaense", league: "Brasil", p: 77 },
+  { name: "Bahia", league: "Brasil", p: 75 },
+
+  // --- INGLATERRA (Premier League) ---
+  { name: "Manchester City", league: "Inglaterra", p: 93 },
+  { name: "Arsenal", league: "Inglaterra", p: 90 },
+  { name: "Liverpool", league: "Inglaterra", p: 90 },
+  { name: "Real Madrid (UK Div)", league: "Inglaterra", p: 88 },
+  { name: "Chelsea", league: "Inglaterra", p: 85 },
+  { name: "Manchester United", league: "Inglaterra", p: 84 },
+  { name: "Tottenham Hotspur", league: "Inglaterra", p: 83 },
+  { name: "Newcastle United", league: "Inglaterra", p: 82 },
+  { name: "Aston Villa", league: "Inglaterra", p: 82 },
+  { name: "Brighton & Hove Albion", league: "Inglaterra", p: 79 },
+
+  // --- ESPAÑA (LaLiga) ---
+  { name: "Real Madrid", league: "España", p: 93 },
+  { name: "FC Barcelona", league: "España", p: 91 },
+  { name: "Atlético de Madrid", league: "España", p: 87 },
+  { name: "Athletic Club", league: "España", p: 82 },
+  { name: "Real Sociedad", league: "España", p: 81 },
+  { name: "Girona FC", league: "España", p: 80 },
+  { name: "Sevilla FC", league: "España", p: 79 },
+  { name: "Real Betis", league: "España", p: 80 },
+  { name: "Villarreal CF", league: "España", p: 79 },
+  { name: "Valencia CF", league: "España", p: 76 },
+
+  // --- ITALIA (Serie A) ---
+  { name: "Inter de Milán", league: "Italia", p: 89 },
+  { name: "Juventus", league: "Italia", p: 86 },
+  { name: "AC Milan", league: "Italia", p: 85 },
+  { name: "SSC Napoli", league: "Italia", p: 84 },
+  { name: "AS Roma", league: "Italia", p: 82 },
+  { name: "Atalanta", league: "Italia", p: 83 },
+  { name: "SS Lazio", league: "Italia", p: 81 },
+  { name: "Fiorentina", league: "Italia", p: 79 },
+
+  // --- ALEMANIA (Bundesliga) ---
+  { name: "Bayern Múnich", league: "Alemania", p: 92 },
+  { name: "Bayer Leverkusen", league: "Alemania", p: 88 },
+  { name: "Borussia Dortmund", league: "Alemania", p: 86 },
+  { name: "RB Leipzig", league: "Alemania", p: 84 },
+  { name: "Eintracht Frankfurt", league: "Alemania", p: 79 },
+  { name: "VfB Stuttgart", league: "Alemania", p: 80 },
+
+  // --- FRANCIA (Ligue 1) ---
+  { name: "Paris Saint-Germain", league: "Francia", p: 90 },
+  { name: "AS Monaco", league: "Francia", p: 81 },
+  { name: "Olympique de Marsella", league: "Francia", p: 80 },
+  { name: "Lille OSC", league: "Francia", p: 79 },
+  { name: "Olympique de Lyon", league: "Francia", p: 78 },
+
+  // --- PORTUGAL (Primeira Liga) ---
+  { name: "SL Benfica", league: "Portugal", p: 83 },
+  { name: "FC Porto", league: "Portugal", p: 82 },
+  { name: "Sporting de Portugal", league: "Portugal", p: 83 },
+
+  // --- OTROS CONTINENTES & OTROS PAÍSES ---
+  { name: "Liga de Quito", league: "Ecuador", p: 75 },
+  { name: "Independiente del Valle", league: "Ecuador", p: 76 },
+  { name: "Barcelona SC", league: "Ecuador", p: 73 },
+  { name: "Peñarol", league: "Uruguay", p: 74 },
+  { name: "Nacional de Montevideo", league: "Uruguay", p: 73 },
+  { name: "Colo-Colo", league: "Chile", p: 73 },
+  { name: "Universidad de Chile", league: "Chile", p: 71 },
+  { name: "Club América", league: "México", p: 77 },
+  { name: "Rayados de Monterrey", league: "México", p: 77 },
+  { name: "Tigres UANL", league: "México", p: 76 },
+  { name: "Inter Miami CF", league: "Estados Unidos", p: 76 },
+  { name: "LA Galaxy", league: "Estados Unidos", p: 72 },
+  { name: "Al-Hilal", league: "Arabia Saudita", p: 82 },
+  { name: "Al-Nassr", league: "Arabia Saudita", p: 80 },
+  { name: "Al-Ittihad", league: "Arabia Saudita", p: 78 }
+];
 const keys=["velocidad","fisico","resistencia","definicion","pase","vision","tecnica","defensa","mentalidad","liderazgo"],labels={velocidad:"Velocidad",fisico:"Físico",resistencia:"Resistencia",definicion:"Definición",pase:"Pase",vision:"Visión",tecnica:"Técnica",defensa:"Defensa",mentalidad:"Mentalidad",liderazgo:"Liderazgo"},focus={Explosividad:["velocidad","resistencia"],Fuerza:["fisico","resistencia"],Finalización:["definicion","tecnica"],Creación:["pase","vision","tecnica"],Defensa:["defensa","mentalidad","fisico"],Liderazgo:["liderazgo","mentalidad"],Recuperación:["resistencia"]};
 let tab="carrera",modal=false,state=load()||fresh("Álvaro Galeano","Paraguay","MP","Profesional","Profesional",20260803);
 function clamp(n,a=0,b=100){return Math.max(a,Math.min(b,n))}function rand(seed){let x=seed||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return((x>>>0)%10000)/10000}}function cash(n){return n>=1e6?`€${(n/1e6).toFixed(n>=1e7?0:1)} M`:`€${Math.round(n/1000)} mil`}function esc(x){return String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
