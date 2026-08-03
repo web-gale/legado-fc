@@ -279,9 +279,9 @@ function NewCareer({
               value={difficulty}
               onChange={(e) => setDifficulty(e.target.value as Difficulty)}
             >
-              <option>Promesa</option>
-              <option>Profesional</option>
-              <option>Leyenda</option>
+              <option value="Promesa">Fácil · Éxito total</option>
+              <option value="Profesional">Normal · Carrera legendaria</option>
+              <option value="Leyenda">Difícil · Máximo desafío</option>
             </select>
           </label>
         </div>
