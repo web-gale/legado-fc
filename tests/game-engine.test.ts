@@ -35,3 +35,27 @@ test("la temporada queda bloqueada hasta aceptar el primer contrato", () => {
   assert.equal(advanced.season, 2);
   assert.equal(advanced.age, 15);
 });
+
+test("Fácil garantiza máxima participación, éxito y producción por posición", () => {
+  const positions = ["POR", "DFC", "MC", "MP", "ED", "DC"] as const;
+  positions.forEach((position, index) => {
+    const free = createCareer({
+      name: "Leyenda de prueba",
+      nationality: "España",
+      position,
+      personality: "Profesional",
+      difficulty: "Promesa",
+    }, 7000 + index);
+    const result = simulateSeason(acceptOffer(free, free.offers[0]));
+    const season = result.history.at(-1)!;
+    assert.equal(season.appearances, 42);
+    assert.equal(season.minutes, season.appearances * 90);
+    assert.equal(season.injury, undefined);
+    assert.ok(season.titles.length >= 1);
+    assert.ok(season.awards.length >= 3);
+    if (["MP", "ED", "DC"].includes(position)) {
+      assert.ok(season.goals / season.appearances >= 0.9);
+      assert.ok(season.assists / season.appearances >= 0.5);
+    }
+  });
+});
