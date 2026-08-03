@@ -9,5 +9,10 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     sourcemap: false,
+    rollupOptions: {
+      // The repository root contains GitHub Pages' compiled index.html.
+      // Keep a separate source entry so repeated builds always compile React.
+      input: "app.html",
+    },
   },
 });
