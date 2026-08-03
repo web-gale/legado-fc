@@ -1,9 +1,7 @@
 /* ==========================================================================
-   LEGADO FC - MOTOR CON LIGAS Y CLUBES REALES
+   LEGADO FC - CYBER DASHBOARD ENGINE
    ========================================================================== */
 
-// --- BASE DE DATOS DE LIGAS Y CLUBES REALES ---
-// --- BASE DE DATOS AMPLIADA DE LIGAS Y CLUBES REALES (1ª Y 2ª DIVISIÓN) ---
 const LEAGUES = {
   // --- SUDAMÉRICA ---
   "Paraguay - Primera División": ["Cerro Porteño", "Olimpia", "Libertad", "Guaraní", "Nacional", "Sportivo Luqueño", "2 de Mayo", "Sol de América", "Tacuary", "General Caballero JLM", "Ameliano", "Koa"],
@@ -49,33 +47,29 @@ const LEAGUES = {
   "Arabia Saudita - Saudi First Division (2ª)": ["Al-Qadsiah", "Al-Orobah", "Al-Kholood", "Al-Arabi", "Al-Adalah", "Al-Faisaly", "Al-Batin", "Al-Jabalain", "Ohod Club", "Al-Jandal"]
 };
 
-// --- ESTADO INICIAL ---
 const DEFAULT_STATE = {
   version: 1,
   created: false,
   tab: "carrera",
   player: {
-    nombre: "",
-    posicion: "DC",
-    liga: "Paraguay",
-    club: "Cerro Porteño",
+    nombre: "Alvaro Galeano",
+    posicion: "MP",
+    club: "Olimpia",
+    liga: "Paraguay - Primera División",
+    edad: 14,
     atributos: {
-      definicion: 55,
-      tecnica: 52,
-      velocidad: 58,
-      fisico: 50,
-      mentalidad: 50,
-      resistencia: 55,
-      defensa: 40
+      pase: 88,
+      regate: 82,
+      creatividad: 85,
+      tiro: 80,
+      fisico: 75,
+      defensa: 45
     },
-    edad: 16,
-    salario: 1200,
-    golesTotales: 0,
-    asistenciasTotales: 0,
-    partidosTotales: 0,
+    partidosTotales: 12,
+    golesTotales: 11,
+    asistenciasTotales: 10,
     historial: []
-  },
-  noticias: []
+  }
 };
 
 let state = JSON.parse(localStorage.getItem("legado_fc_save")) || JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -84,120 +78,106 @@ function save() {
   localStorage.setItem("legado_fc_save", JSON.stringify(state));
 }
 
-function resetGame() {
-  if (confirm("¿Estás seguro de reiniciar tu carrera? Se borrarán todos los datos.")) {
-    state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-    save();
-    render();
-  }
-}
-
-// --- LÓGICA DE MEDIA (OVERALL) ---
 function overall(p) {
   const a = p.atributos;
-  const w = p.posicion === "POR"
-    ? { defensa: 0.35, fisico: 0.25, mentalidad: 0.2, resistencia: 0.1, velocidad: 0.1 }
-    : p.posicion === "DC"
-    ? { definicion: 0.3, tecnica: 0.18, velocidad: 0.14, fisico: 0.14, mentalidad: 0.16, resistencia: 0.08 }
-    : p.posicion === "MC"
-    ? { tecnica: 0.25, mentalidad: 0.2, resistencia: 0.2, definicion: 0.15, defensa: 0.2 }
-    : { defensa: 0.35, fisico: 0.25, mentalidad: 0.2, resistencia: 0.1, velocidad: 0.1 };
-
-  let total = 0;
-  for (let attr in a) {
-    total += (a[attr] || 50) * (w[attr] || 0.14);
-  }
-  return Math.round(total);
+  let sum = 0;
+  let count = 0;
+  for (let k in a) { sum += a[k]; count++; }
+  return Math.round(sum / count);
 }
 
 function valorMercado(p) {
-  const media = overall(p);
-  const factorEdad = Math.max(0.4, (36 - p.edad) / 20);
-  return Math.round(media * 180000 * factorEdad);
+  return (overall(p) * 0.06).toFixed(1) + " M";
 }
 
-// --- SIMULAR TEMPORADA ---
 function simulateSeason() {
-  if (state.player.edad >= 40) {
-    alert("¡Te has retirado del fútbol profesional a los 40 años! Gracias por tu legado.");
-    return;
-  }
-
   const p = state.player;
   p.edad += 1;
-
-  // Crecimiento por edad
-  const crecimiento = p.edad <= 22 ? 3 : p.edad <= 28 ? 1 : -2;
   for (let attr in p.atributos) {
-    p.atributos[attr] = Math.min(99, Math.max(30, p.atributos[attr] + crecimiento));
+    p.atributos[attr] = Math.min(99, p.atributos[attr] + Math.floor(Math.random() * 4));
   }
-
-  // Partidos y rendimiento
-  const partidos = Math.floor(Math.random() * 15) + 25;
-  const goles = p.posicion === "POR" ? 0 : Math.floor(Math.random() * (p.atributos.definicion / 3.8));
-  const asistencias = p.posicion === "POR" ? 0 : Math.floor(Math.random() * (p.atributos.tecnica / 4.5));
-
-  p.partidosTotales += partidos;
-  p.golesTotales += goles;
-  p.asistenciasTotales += asistencias;
-
-  p.historial.push({
-    edad: p.edad,
-    club: p.club,
-    liga: p.liga,
-    partidos,
-    goles,
-    asistencias,
-    media: overall(p)
-  });
-
-  state.noticias.unshift(`T${p.edad - 16}: Jugaste ${partidos} partidos con ${p.club}, anotando ${goles} goles y ${asistencias} asistencias.`);
   save();
   render();
 }
 
-// --- RENDERIZADO DE INTERFAZ ---
+function drawRadar(canvasId, stats) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const center = width / 2;
+  const radius = center - 30;
+
+  ctx.clearRect(0, 0, width, height);
+
+  const keys = Object.keys(stats);
+  const total = keys.length;
+
+  // Dibujar red poligonal
+  ctx.strokeStyle = "rgba(0, 216, 246, 0.2)";
+  for (let level = 1; level <= 4; level++) {
+    ctx.beginPath();
+    let r = (radius / 4) * level;
+    for (let i = 0; i < total; i++) {
+      let angle = (i * 2 * Math.PI / total) - Math.PI / 2;
+      let x = center + r * Math.cos(angle);
+      let y = center + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  // Dibujar polígono de jugador
+  ctx.beginPath();
+  ctx.fillStyle = "rgba(0, 216, 246, 0.3)";
+  ctx.strokeStyle = "#00d8f6";
+  ctx.lineWidth = 2;
+  keys.forEach((key, i) => {
+    let angle = (i * 2 * Math.PI / total) - Math.PI / 2;
+    let value = stats[key] / 100;
+    let x = center + radius * value * Math.cos(angle);
+    let y = center + radius * value * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Etiquetas
+  ctx.fillStyle = "#8a9bb8";
+  ctx.font = "10px Rajdhani, sans-serif";
+  keys.forEach((key, i) => {
+    let angle = (i * 2 * Math.PI / total) - Math.PI / 2;
+    let x = center + (radius + 18) * Math.cos(angle) - 12;
+    let y = center + (radius + 18) * Math.sin(angle) + 4;
+    ctx.fillText(key.toUpperCase(), x, y);
+  });
+}
+
 function render() {
   const app = document.getElementById("app");
   if (!app) return;
 
-  // CREACIÓN DE PERSONAJE
   if (!state.created) {
-    const defaultLiga = "Paraguay";
     app.innerHTML = `
-      <div class="card">
-        <h1>Crear tu Futbolista</h1>
+      <div class="profile-card" style="max-width: 500px; margin: 40px auto;">
+        <h1 style="font-family: var(--font-heading); color: var(--cyan-bright); margin-bottom: 20px;">CREAR FUTBOLISTA</h1>
         <form id="create-form">
-          <div class="form-group">
-            <label>Nombre del Jugador:</label>
-            <input type="text" id="p-nombre" required placeholder="Ej. Álvaro Galeano">
+          <div style="margin-bottom: 15px;">
+            <label style="color: var(--text-muted); display:block;">Nombre del Jugador:</label>
+            <input type="text" id="p-nombre" required value="Álvaro Galeano" style="width:100%; padding: 10px; background: var(--bg-dark); border:1px solid var(--border-cyan); color:#fff;">
           </div>
-          
-          <div class="form-group">
-            <label>Posición:</label>
-            <select id="p-posicion">
+          <div style="margin-bottom: 15px;">
+            <label style="color: var(--text-muted); display:block;">Posición:</label>
+            <select id="p-posicion" style="width:100%; padding: 10px; background: var(--bg-dark); border:1px solid var(--border-cyan); color:#fff;">
+              <option value="MP">Mediapunta (MP)</option>
               <option value="DC">Delantero Centro (DC)</option>
               <option value="MC">Centrocampista (MC)</option>
-              <option value="DFC">Defensa Central (DFC)</option>
-              <option value="POR">Portero (POR)</option>
             </select>
           </div>
-
-          <div class="form-group">
-            <label>Liga Inicial:</label>
-            <select id="p-liga" onchange="updateClubOptions(this.value)">
-              ${Object.keys(LEAGUES).map(l => `<option value="${l}">${l}</option>`).join('')}
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Club de Debut:</label>
-            <select id="p-club">
-              ${LEAGUES[defaultLiga].map(c => `<option value="${c}">${c}</option>`).join('')}
-            </select>
-          </div>
-          
-          <button type="submit" class="btn btn-primary">Comenzar Carrera Profesionial</button>
+          <button type="submit" class="btn-cyan" style="width:100%; justify-content:center;">INICIAR LEGADO</button>
         </form>
       </div>
     `;
@@ -206,8 +186,6 @@ function render() {
       e.preventDefault();
       state.player.nombre = document.getElementById("p-nombre").value;
       state.player.posicion = document.getElementById("p-posicion").value;
-      state.player.liga = document.getElementById("p-liga").value;
-      state.player.club = document.getElementById("p-club").value;
       state.created = true;
       save();
       render();
@@ -215,131 +193,107 @@ function render() {
     return;
   }
 
-  // INTERFAZ PRINCIPAL
   const p = state.player;
-  const media = overall(p);
 
   app.innerHTML = `
-    <header>
-      <h1>LEGADO FC</h1>
-      <p><strong>${p.nombre}</strong> | ${p.posicion} | ${p.edad} Años | OVR: <span class="ovr-badge">${media}</span></p>
-    </header>
+    <!-- NAVBAR TOP -->
+    <div class="navbar">
+      <div class="brand">LEGADO FC</div>
+      <div class="nav-tabs">
+        <button class="active">Carrera</button>
+        <button>Temporada</button>
+        <button>Mercado</button>
+        <button>Estadísticas</button>
+      </div>
+      <div class="nav-stats">
+        <span>⚡ 100</span>
+        <span>📅 15 JUN 2026</span>
+        <span>💰 $${valorMercado(p)}</span>
+      </div>
+    </div>
 
-    <nav class="tabs">
-      <button onclick="setTab('carrera')" class="${state.tab === 'carrera' ? 'active' : ''}">Carrera</button>
-      <button onclick="setTab('estadisticas')" class="${state.tab === 'estadisticas' ? 'active' : ''}">Estadísticas</button>
-      <button onclick="setTab('opciones')" class="${state.tab === 'opciones' ? 'active' : ''}">Opciones</button>
-    </nav>
+    <!-- DASHBOARD PRINCIPAL -->
+    <div class="dashboard-grid">
+      <!-- HERO IZQUIERDO -->
+      <div class="hero-panel">
+        <div class="sub-header">DECISIÓN DE CARRERA ———</div>
+        <h1 class="hero-title">Tu carrera.<br>Tus decisiones.<br>Tu legado.</h1>
+        <p class="hero-desc">${p.nombre} está en un momento clave de su carrera.<br>${p.club} quiere asegurar su futuro.<br>Tú decides el siguiente paso.</p>
+        <div>
+          <button class="btn-cyan" onclick="simulateSeason()">Continuar carrera &gt;</button>
+        </div>
+      </div>
 
-    <main>
-      ${
-        state.tab === 'carrera' ? `
-          <div class="card">
-            <h2>Equipo Actual</h2>
-            <p><strong>Club:</strong> ${p.club} (${p.liga})</p>
-            <p><strong>Valor Estimado:</strong> $${valorMercado(p).toLocaleString()} USD</p>
-            <button onclick="simulateSeason()" class="btn btn-primary">Simular Siguiente Temporada</button>
+      <!-- PROFILE DERECHO -->
+      <div class="profile-card">
+        <div class="player-header">
+          <div style="width: 50px; height: 50px; background: #800; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">CP</div>
+          <div>
+            <h2>${p.nombre}</h2>
+            <div class="player-sub">
+              <span>👤 ${p.edad} AÑOS</span>
+              <span>🎯 ${p.posicion}</span>
+              <span>🛡️ ${p.club}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-inner-grid">
+          <div class="radar-container">
+            <h4 style="font-family: var(--font-heading); color: var(--text-muted); margin-bottom: 10px;">PERFIL TÉCNICO</h4>
+            <canvas id="radarCanvas" width="200" height="200"></canvas>
           </div>
 
-          <div class="card">
-            <h3>Novedades de la Carrera</h3>
-            <ul class="news-list">
-              ${state.noticias.length ? state.noticias.map(n => `<li class="news-item">${n}</li>`).join('') : '<li class="news-item">Tu carrera profesional acaba de comenzar.</li>'}
-            </ul>
+          <div>
+            <h4 style="font-family: var(--font-heading); color: var(--text-muted); margin-bottom: 10px;">DECISIÓN DE CONTRATO</h4>
+            <div class="decision-box" onclick="simulateSeason()">
+              <strong style="color: var(--cyan-bright);">QUEDARTE</strong>
+              <p style="font-size:0.8rem; color:var(--text-muted);">Renueva con ${p.club} y sigue tu desarrollo.</p>
+            </div>
+            <div class="decision-box orange" onclick="simulateSeason()">
+              <strong style="color: var(--orange-bright);">NUEVO DESAFÍO</strong>
+              <p style="font-size:0.8rem; color:var(--text-muted);">Acepta una oferta del exterior y da el salto.</p>
+            </div>
           </div>
-        ` : state.tab === 'estadisticas' ? `
-          <div class="card">
-            <h2>Estadísticas Generales</h2>
-            <p>Partidos: <strong>${p.partidosTotales}</strong> | Goles: <strong>${p.golesTotales}</strong> | Asistencias: <strong>${p.asistenciasTotales}</strong></p>
-            <table>
-              <thead>
-                <tr>
-                  <th>Edad</th>
-                  <th>Club</th>
-                  <th>PJ</th>
-                  <th>Goles</th>
-                  <th>Asist.</th>
-                  <th>Media</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${p.historial.map(h => `
-                  <tr>
-                    <td>${h.edad}</td>
-                    <td>${h.club}</td>
-                    <td>${h.partidos}</td>
-                    <td>${h.goles}</td>
-                    <td>${h.asistencias}</td>
-                    <td><span class="ovr-badge">${h.media}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        ` : `
-          <div class="card">
-            <h2>Gestión de Datos</h2>
-            <button onclick="exportSave()" class="btn">Exportar Partida (.JSON)</button>
-            <button onclick="triggerImport()" class="btn">Importar Partida (.JSON)</button>
-            <button onclick="resetGame()" class="btn btn-danger">Reiniciar Carrera</button>
-          </div>
-        `
-      }
-    </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICAS INFERIORES -->
+    <div class="footer-metrics">
+      <div>
+        <div class="metric-title">LÍNEA DE TIEMPO</div>
+        <div class="timeline" style="margin-top: 10px;">
+          <div class="timeline-node"></div>
+          <div class="timeline-node active"></div>
+          <div class="timeline-node"></div>
+          <div class="timeline-node"></div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-title">MEDIA</div>
+        <div class="metric-value">${overall(p)}</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-title">POTENCIAL</div>
+        <div class="metric-value">88</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-title">VALOR</div>
+        <div class="metric-value">$${valorMercado(p)}</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-title">POPULARIDAD</div>
+        <div class="metric-value">31</div>
+      </div>
+    </div>
   `;
+
+  setTimeout(() => drawRadar("radarCanvas", p.atributos), 50);
 }
 
-// Actualizador dinámico de clubes en el formulario de inicio
-window.updateClubOptions = function(ligaSelect) {
-  const clubSelect = document.getElementById("p-club");
-  if (!clubSelect) return;
-  const clubs = LEAGUES[ligaSelect] || [];
-  clubSelect.innerHTML = clubs.map(c => `<option value="${c}">${c}</option>`).join('');
-};
-
-function setTab(t) {
-  state.tab = t;
-  save();
-  render();
-}
-
-function exportSave() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
-  const a = document.createElement('a');
-  a.setAttribute("href", dataStr);
-  a.setAttribute("download", `legado_fc_${state.player.nombre.replace(/\s+/g, '_')}.json`);
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-function triggerImport() {
-  const fileInput = document.getElementById("import-file");
-  if (fileInput) fileInput.click();
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const fileInput = document.getElementById("import-file");
-  if (fileInput) {
-    fileInput.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        try {
-          const loadedState = JSON.parse(evt.target.result);
-          if (!loadedState.player || !loadedState.version) throw new Error();
-          state = loadedState;
-          save();
-          render();
-          alert("Partida cargada exitosamente.");
-        } catch {
-          alert("Error: El archivo no es válido.");
-        }
-      };
-      reader.readAsText(file);
-      e.target.value = "";
-    };
-  }
-  render();
-});
+document.addEventListener("DOMContentLoaded", render);
