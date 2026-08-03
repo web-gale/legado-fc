@@ -1,19 +1,19 @@
-<!doctype html>
-<html lang="es" data-theme="light">
+<!DOCTYPE html>
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="LEGADO FC — Simulador de carrera futbolística">
-  <meta name="theme-color" content="#F2EFE6">
-  <title>LEGADO FC</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEGADO FC - Simulador de Carrera Futbolística</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Contenedor principal donde la app JavaScript renderiza toda la UI -->
   <div id="app"></div>
-  <input id="import-file" type="file" accept="application/json" hidden>
+
+  <!-- Input oculto para la carga de archivos de partida guardada -->
+  <input type="file" id="import-file" accept=".json" style="display: none;">
+
+  <!-- Script principal con la lógica del juego -->
   <script src="app.js"></script>
 </body>
 </html>
