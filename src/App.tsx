@@ -7,6 +7,7 @@ import {
   simulateSeason,
 } from "./game/engine";
 import { COUNTRIES, POSITION_LABELS, SEASON_PHASES } from "./game/data";
+import { resolveClubCrest } from "./game/crests";
 import {
   PERSONALITIES,
   POSITIONS,
@@ -158,22 +159,13 @@ function ClubCrest({
       return;
     }
     const country = league.split(" - ")[0];
-    const key = `legado-crest:${club}:${country}`;
+    const key = `legado-crest:v2:${club}:${country}`;
     const cached = localStorage.getItem(key);
     if (cached) {
       setLogo(cached);
       return;
     }
-    const query = encodeURIComponent(`${club} ${country} football club`);
-    fetch(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${query}&language=es&uselang=es&type=item&limit=7&format=json&origin=*`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(async (data) => {
-        const candidate = data?.search?.find((item: {description?:string}) => /fútbol|football|soccer/i.test(item.description ?? "")) ?? data?.search?.[0];
-        if (!candidate?.id) return null;
-        const details = await fetch(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${candidate.id}&props=claims&format=json&origin=*`).then(r => r.ok ? r.json() : null);
-        const filename = details?.entities?.[candidate.id]?.claims?.P154?.[0]?.mainsnak?.datavalue?.value;
-        return filename ? `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(filename)}?width=160` : null;
-      })
+    resolveClubCrest(club, league)
       .then((src) => {
         if (src) {
           localStorage.setItem(key, src);
