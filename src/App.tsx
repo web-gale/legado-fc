@@ -16,6 +16,7 @@ import {
   type Difficulty,
   type NewCareer,
   type Position,
+  type SeasonRecord,
 } from "./game/types";
 type Tab = "carrera" | "temporada" | "mercado" | "estadísticas" | "legado";
 const cash = (n: number) =>
@@ -206,6 +207,66 @@ function ClubCrest({
     </div>
   );
 }
+
+function achievementIcon(name: string, type: "title" | "award") {
+  if (/Mundial|Intercontinental/.test(name)) return "🌍";
+  if (/Champions|Libertadores|CONCACAF|AFC|Sudamericana|Europa|Conference/.test(name)) return "🏆";
+  if (/Balón de Oro|The Best/.test(name)) return "🥇";
+  if (/Goleador|Bota de Oro|Gerd Müller/.test(name)) return "👟";
+  if (/Guante|guardameta/.test(name)) return "🧤";
+  if (/Equipo Ideal|World11/.test(name)) return "⭐";
+  return type === "title" ? "🏆" : "🎖️";
+}
+
+function SeasonReport({
+  report,
+  close,
+}: {
+  report: SeasonRecord | null;
+  close: () => void;
+}) {
+  if (!report) return null;
+  return (
+    <div className="backdrop season-report-backdrop">
+      <section className="modal season-report" role="dialog" aria-modal="true" aria-labelledby="season-report-title">
+        <button className="x" onClick={close} aria-label="Cerrar informe">×</button>
+        <p className="eyebrow">TEMPORADA {report.season} COMPLETADA</p>
+        <h2 id="season-report-title">Noche de campeones</h2>
+        <p>{report.club} · {report.league}</p>
+        <div className="report-stats">
+          <Stat label="PARTIDOS" value={report.appearances} sub={`${report.minutes} minutos`} />
+          <Stat label="GOLES" value={report.goals} sub={`${(report.goals / Math.max(1, report.appearances)).toFixed(2)} por partido`} />
+          <Stat label="ASISTENCIAS" value={report.assists} sub={`${(report.assists / Math.max(1, report.appearances)).toFixed(2)} por partido`} />
+          <Stat label="VALORACIÓN" value={report.rating} />
+        </div>
+        <div className="honours-grid">
+          <article className="honours team-honours">
+            <span className="honours-kicker">🏆 TÍTULOS DEL EQUIPO</span>
+            <h3>{report.titles.length ? `${report.titles.length} conquistas` : "Sin títulos esta temporada"}</h3>
+            {report.titles.map((title) => (
+              <div className="honour" key={title}>
+                <b>{achievementIcon(title, "title")}</b>
+                <span><strong>{title}</strong><small>Campeón con {report.club}</small></span>
+              </div>
+            ))}
+          </article>
+          <article className="honours player-honours">
+            <span className="honours-kicker">🎖️ PREMIOS INDIVIDUALES</span>
+            <h3>{report.awards.length ? `${report.awards.length} reconocimientos` : "Sin premios esta temporada"}</h3>
+            {report.awards.map((award) => (
+              <div className="honour" key={award}>
+                <b>{achievementIcon(award, "award")}</b>
+                <span><strong>{award}</strong><small>Temporada {report.season}</small></span>
+              </div>
+            ))}
+          </article>
+        </div>
+        <button className="primary wide" onClick={close}>Continuar carrera <Icon n="arrow" /></button>
+      </section>
+    </div>
+  );
+}
+
 function NewCareer({
   open,
   close,
@@ -324,6 +385,7 @@ export default function Home() {
         : "dark",
     ),
     [newOpen, setNewOpen] = useState(false),
+    [seasonReport, setSeasonReport] = useState<SeasonRecord | null>(null),
     [busy, setBusy] = useState(false),
     [save, setSave] = useState("Partida local lista");
   const file = useRef<HTMLInputElement>(null);
@@ -358,6 +420,7 @@ export default function Home() {
     setState(n);
     await persist(n);
     setBusy(false);
+    setSeasonReport(n.history.at(-1) ?? null);
     if (n.status === "retired") setTab("legado");
   };
   const make = (x: NewCareer) => {
@@ -910,6 +973,7 @@ export default function Home() {
         <button onClick={() => setNewOpen(true)}>Nueva carrera</button>
       </footer>
       <NewCareer open={newOpen} close={() => setNewOpen(false)} create={make} />
+      <SeasonReport report={seasonReport} close={() => setSeasonReport(null)} />
     </main>
   );
 }
