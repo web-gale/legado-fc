@@ -177,6 +177,64 @@ function initialAttributes(p: Position, pot: number): Attributes {
   });
   return a;
 }
+
+function leagueMatchLimit(league: string) {
+  if (/EFL Championship/.test(league)) return 46;
+  if (/LaLiga Hypermotion/.test(league)) return 42;
+  if (/Paraguay - Primera División/.test(league)) return 44;
+  if (/División Intermedia/.test(league)) return 30;
+  if (/Liga Profesional/.test(league)) return 30;
+  if (/Uruguay - Primera División/.test(league)) return 37;
+  if (/Uruguay - Segunda División|LigaPro|Ecuador - Serie B/.test(league))
+    return 30;
+  if (/Liga MX|Expansión MX/.test(league)) return 34;
+  if (/Bundesliga|Saudi Pro League|Saudi First Division|MLS|Ligue 1|Ligue 2/.test(league))
+    return 34;
+  if (/Brasileirão|Série A|Série B|Premier League|LaLiga|Serie A|Serie B/.test(league))
+    return 38;
+  return 34;
+}
+
+const easyProduction: Record<Position, { goals: number; assists: number }> = {
+  POR: { goals: 0, assists: 0.08 },
+  LD: { goals: 0.16, assists: 0.55 },
+  LI: { goals: 0.16, assists: 0.55 },
+  DFC: { goals: 0.12, assists: 0.2 },
+  MCD: { goals: 0.28, assists: 0.55 },
+  MC: { goals: 0.55, assists: 0.75 },
+  MP: { goals: 0.9, assists: 0.8 },
+  ED: { goals: 0.9, assists: 0.65 },
+  EI: { goals: 0.9, assists: 0.65 },
+  DC: { goals: 1.05, assists: 0.5 },
+};
+
+function easyTeamTitles(s: CareerState, r: () => number) {
+  const secondDivision = /2ª|Série B|Serie B|Ligue 2|Championship|Hypermotion|First Division|Expansión/.test(
+    s.league,
+  );
+  if (secondDivision) {
+    return [
+      "Campeón de segunda división",
+      ...(s.clubPrestige >= 52 && r() < 0.72 ? ["Copa nacional"] : []),
+    ];
+  }
+  return [
+    s.clubPrestige >= 66 ? "Liga nacional" : "Copa nacional",
+    ...(s.clubPrestige >= 62 && r() < 0.88 ? ["Copa nacional"] : []),
+    ...(s.clubPrestige >= 74 && r() < 0.76 ? ["Título continental"] : []),
+    ...(s.clubPrestige >= 84 && r() < 0.48 ? ["Mundial de Clubes"] : []),
+  ].filter((title, index, all) => all.indexOf(title) === index);
+}
+
+function easyIndividualAwards(position: Position) {
+  if (position === "POR")
+    return ["Mejor guardameta", "Guante de Oro", "Equipo ideal de la temporada"];
+  if (["DFC", "LD", "LI", "MCD"].includes(position))
+    return ["Mejor defensor", "Jugador del año", "Equipo ideal de la temporada"];
+  if (["MC", "MP"].includes(position))
+    return ["Mejor asistente", "Jugador del año", "Equipo ideal de la temporada"];
+  return ["Máximo goleador", "Jugador del año", "Equipo ideal de la temporada"];
+}
 export function createCareer(
   input: NewCareer,
   seed = Date.now() % 2147483647,
@@ -184,7 +242,9 @@ export function createCareer(
   const random = rng(seed),
     attributes = initialAttributes(
       input.position,
-      78 + Math.floor(random() * 17),
+      input.difficulty === "Promesa"
+        ? 97 + Math.floor(random() * 3)
+        : 78 + Math.floor(random() * 17),
     ),
     local = clubsForCountry(input.nationality),
     pool = local.filter((c) => c.division === 2).length
@@ -348,9 +408,10 @@ export function simulateSeason(current: CareerState): CareerState {
     Math.max(0, s.age - 30) / 180 +
     (s.riskMode === "máximo" ? 0.06 : s.riskMode === "prudente" ? -0.012 : 0) -
     (s.trainingFocus === "Recuperación" ? 0.03 : 0);
+  const easy = s.difficulty === "Promesa";
   let injury: string | undefined,
     missed = 0;
-  if (random() < risk) {
+  if (!easy && random() < risk) {
     const x = random();
     injury =
       x > 0.94
@@ -380,13 +441,17 @@ export function simulateSeason(current: CareerState): CareerState {
       100,
     );
   const role = clamp((s.overall - s.clubPrestige + 28) / 55, 0.18, 0.96),
-    pj = Math.max(
-      2,
-      Math.round((32 - missed) * role * (0.86 + random() * 0.26)),
-    ),
-    mins = Math.round(
-      pj * (s.overall >= s.clubPrestige - 3 ? 78 : 42 + random() * 22),
-    ),
+    pj = easy
+      ? leagueMatchLimit(s.league)
+      : Math.max(
+          2,
+          Math.round((32 - missed) * role * (0.86 + random() * 0.26)),
+        ),
+    mins = easy
+      ? pj * 90
+      : Math.round(
+          pj * (s.overall >= s.clubPrestige - 3 ? 78 : 42 + random() * 22),
+        ),
     attack =
       s.position === "DC"
         ? 1
@@ -395,7 +460,7 @@ export function simulateSeason(current: CareerState): CareerState {
           : ["MC", "LD", "LI"].includes(s.position)
             ? 0.27
             : 0.07,
-    g = Math.max(
+    generatedGoals = Math.max(
       0,
       Math.round(
         pj *
@@ -404,7 +469,7 @@ export function simulateSeason(current: CareerState): CareerState {
           (0.28 + random() * 0.44),
       ),
     ),
-    a = Math.max(
+    generatedAssists = Math.max(
       0,
       Math.round(
         pj *
@@ -413,6 +478,13 @@ export function simulateSeason(current: CareerState): CareerState {
           (0.55 + random() * 0.6),
       ),
     ),
+    easyTarget = easyProduction[s.position],
+    g = easy
+      ? Math.max(generatedGoals, Math.ceil(pj * easyTarget.goals))
+      : generatedGoals,
+    a = easy
+      ? Math.max(generatedAssists, Math.ceil(pj * easyTarget.assists))
+      : generatedAssists,
     cards = Math.round(
       pj *
         (["DFC", "MCD", "LD", "LI"].includes(s.position) ? 0.14 : 0.055) *
@@ -440,14 +512,16 @@ export function simulateSeason(current: CareerState): CareerState {
     ng = Math.round((caps * attack * s.attributes.definicion) / 260);
   s.nationalCaps += caps;
   s.nationalGoals += ng;
-  const titles: string[] = [];
-  if (random() < 0.1 + s.clubPrestige / 420)
+  const titles: string[] = easy ? easyTeamTitles(s, random) : [];
+  if (!easy && random() < 0.1 + s.clubPrestige / 420)
     titles.push(random() > 0.42 ? "Liga nacional" : "Copa nacional");
-  if (s.clubPrestige > 74 && random() < 0.08) titles.push("Título continental");
-  const awards: string[] = [];
-  if (rating > 7.65 && pj > 20)
+  if (!easy && s.clubPrestige > 74 && random() < 0.08)
+    titles.push("Título continental");
+  const awards: string[] = easy ? easyIndividualAwards(s.position) : [];
+  if (!easy && rating > 7.65 && pj > 20)
     awards.push(s.age <= 21 ? "Mejor joven" : "Jugador del año");
-  if (g > 24) awards.push("Máximo goleador");
+  if (!easy && g > 24) awards.push("Máximo goleador");
+  if (easy && s.age <= 21) awards.push("Mejor jugador joven");
   s.titles.push(...titles);
   s.awards.push(...awards);
   s.salary = money(s.salary * (1.04 + Math.max(0, rating - 6.4) * 0.08));
