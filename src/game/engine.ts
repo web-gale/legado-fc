@@ -195,6 +195,34 @@ function leagueMatchLimit(league: string) {
   return 34;
 }
 
+function divisionOfLeague(league: string): 1 | 2 {
+  return /2ª|Série B|Serie B|Ligue 2|Championship|Hypermotion|First Division|Expansión|2\. Bundesliga|USL/.test(
+    league,
+  )
+    ? 2
+    : 1;
+}
+
+function leagueForDivision(league: string, division: 1 | 2) {
+  const country = league.split(" - ")[0];
+  return CLUBS.find(
+    (club) => club.country === country && club.division === division,
+  )?.league;
+}
+
+export function nextLeagueAfterSeason(
+  league: string,
+  wonSecondDivision: boolean,
+  relegated: boolean,
+) {
+  const division = divisionOfLeague(league);
+  if (division === 2 && wonSecondDivision)
+    return leagueForDivision(league, 1) ?? league;
+  if (division === 1 && relegated)
+    return leagueForDivision(league, 2) ?? league;
+  return league;
+}
+
 const easyProduction: Record<
   Position,
   { goals: [number, number]; assists: [number, number] }
@@ -263,6 +291,66 @@ function easyTeamTitles(s: CareerState, r: () => number) {
   if (s.clubPrestige >= 78 && r() < 0.56)
     titles.push(r() < 0.68 ? "Mundial de Clubes de la FIFA" : "Copa Intercontinental de la FIFA");
   return titles.filter((title, index, all) => all.indexOf(title) === index);
+}
+
+function teamTitles(s: CareerState, r: () => number) {
+  if (s.difficulty === "Promesa") return easyTeamTitles(s, r);
+  const set = competitionsFor(s.league);
+  const normal = s.difficulty === "Profesional";
+  const titles: string[] = [];
+  const domesticChance = normal
+    ? 0.18 + s.clubPrestige / 320
+    : 0.1 + s.clubPrestige / 420;
+  if (r() < domesticChance)
+    titles.push(
+      r() > 0.42 || !set.cups.length
+        ? set.league
+        : set.cups[Math.floor(r() * set.cups.length)],
+    );
+  const internationalChance = normal
+    ? 0.1 + s.clubPrestige / 800
+    : 0.08;
+  if (
+    s.clubPrestige > 70 &&
+    set.continental.length &&
+    r() < internationalChance
+  )
+    titles.push(set.continental[Math.floor(r() * set.continental.length)]);
+  return titles.filter((title, index, all) => all.indexOf(title) === index);
+}
+
+function seasonCalendar(
+  s: CareerState,
+  titles: string[],
+  r: () => number,
+) {
+  const set = competitionsFor(s.league);
+  const league = leagueMatchLimit(s.league);
+  const easy = s.difficulty === "Promesa";
+  let cups = 0;
+  set.cups.forEach((competition, index) => {
+    const champion = titles.includes(competition);
+    const participates =
+      champion ||
+      index === 0 ||
+      (s.clubPrestige >= 62 && r() < (easy ? 0.9 : 0.42));
+    if (participates) cups += champion ? 6 : 1 + Math.floor(r() * 5);
+  });
+  const internationalTitle = titles.some((title) =>
+    set.continental.includes(title),
+  );
+  const qualifiedInternational =
+    divisionOfLeague(s.league) === 1 &&
+    set.continental.length > 0 &&
+    (internationalTitle ||
+      (s.clubPrestige >= 60 &&
+        r() < Math.min(0.92, (s.clubPrestige - 42) / 45)));
+  const international = qualifiedInternational
+    ? internationalTitle
+      ? 13
+      : 6 + Math.floor(r() * 7)
+    : 0;
+  return { league, cups, international, total: league + cups + international };
 }
 
 function regionalPlayerAward(league: string) {
@@ -456,6 +544,7 @@ export function simulateSeason(current: CareerState): CareerState {
     (s.riskMode === "máximo" ? 0.06 : s.riskMode === "prudente" ? -0.012 : 0) -
     (s.trainingFocus === "Recuperación" ? 0.03 : 0);
   const easy = s.difficulty === "Promesa";
+  const normal = s.difficulty === "Profesional";
   let injury: string | undefined,
     missed = 0;
   if (!easy && random() < risk) {
@@ -487,13 +576,30 @@ export function simulateSeason(current: CareerState): CareerState {
       35,
       100,
     );
-  const role = clamp((s.overall - s.clubPrestige + 28) / 55, 0.18, 0.96),
+  const titles = teamTitles(s, random),
+    calendar = seasonCalendar(s, titles, random),
+    role = clamp((s.overall - s.clubPrestige + 28) / 55, 0.18, 0.96),
     pj = easy
-      ? leagueMatchLimit(s.league)
-      : Math.max(
-          2,
-          Math.round((32 - missed) * role * (0.86 + random() * 0.26)),
-        ),
+      ? calendar.total
+      : normal
+        ? Math.min(
+            calendar.total,
+            Math.max(
+              Math.ceil(calendar.total * 0.8),
+              Math.round(
+                (calendar.total - missed) * (0.9 + random() * 0.08),
+              ),
+            ),
+          )
+        : Math.min(
+            calendar.total,
+            Math.max(
+              2,
+              Math.round(
+                (calendar.total - missed) * role * (0.86 + random() * 0.26),
+              ),
+            ),
+          ),
     mins = easy
       ? pj * 90
       : Math.round(
@@ -533,11 +639,15 @@ export function simulateSeason(current: CareerState): CareerState {
       easyTarget.assists[0] +
       random() * (easyTarget.assists[1] - easyTarget.assists[0]),
     g = easy
-      ? Math.max(generatedGoals, Math.round(pj * easyGoalRate))
-      : generatedGoals,
+      ? Math.max(generatedGoals, Math.ceil(pj * easyGoalRate))
+      : normal
+        ? Math.max(generatedGoals, Math.ceil(pj * 0.58))
+        : generatedGoals,
     a = easy
-      ? Math.max(generatedAssists, Math.round(pj * easyAssistRate))
-      : generatedAssists,
+      ? Math.max(generatedAssists, Math.ceil(pj * easyAssistRate))
+      : normal
+        ? Math.max(generatedAssists, Math.ceil(pj * 0.2))
+        : generatedAssists,
     cards = Math.round(
       pj *
         (["DFC", "MCD", "LD", "LI"].includes(s.position) ? 0.14 : 0.055) *
@@ -566,19 +676,6 @@ export function simulateSeason(current: CareerState): CareerState {
   s.nationalCaps += caps;
   s.nationalGoals += ng;
   const competitionSet = competitionsFor(s.league);
-  const titles: string[] = easy ? easyTeamTitles(s, random) : [];
-  if (!easy && random() < 0.1 + s.clubPrestige / 420)
-    titles.push(
-      random() > 0.42 || !competitionSet.cups.length
-        ? competitionSet.league
-        : competitionSet.cups[Math.floor(random() * competitionSet.cups.length)],
-    );
-  if (!easy && s.clubPrestige > 74 && competitionSet.continental.length && random() < 0.08)
-    titles.push(
-      competitionSet.continental[
-        Math.floor(random() * competitionSet.continental.length)
-      ],
-    );
   const awards: string[] = easy
     ? easyIndividualAwards(s.position, s.league, s.age, random)
     : [];
@@ -616,6 +713,9 @@ export function simulateSeason(current: CareerState): CareerState {
     club: s.club,
     league: s.league,
     appearances: pj,
+    leagueMatches: calendar.league,
+    cupMatches: calendar.cups,
+    internationalMatches: calendar.international,
     minutes: mins,
     goals: g,
     assists: a,
@@ -638,12 +738,48 @@ export function simulateSeason(current: CareerState): CareerState {
   s.records.assists = (s.records.assists ?? 0) + a;
   s.records.appearances = (s.records.appearances ?? 0) + pj;
   s.records.maxValue = Math.max(s.records.maxValue ?? 0, s.marketValue);
+  const wonSecondDivision =
+      divisionOfLeague(rec.league) === 2 &&
+      titles.includes(competitionSet.league),
+    relegationRisk = clamp(
+      (66 - s.clubPrestige) / 55 + Math.max(0, 6.65 - rating) * 0.14,
+      0,
+      0.3,
+    ),
+    relegated =
+      divisionOfLeague(rec.league) === 1 &&
+      !titles.includes(competitionSet.league) &&
+      random() < relegationRisk,
+    nextLeague = nextLeagueAfterSeason(
+      rec.league,
+      wonSecondDivision,
+      relegated,
+    );
+  if (nextLeague !== rec.league) {
+    rec.leagueMovement = wonSecondDivision ? "Ascenso" : "Descenso";
+    rec.nextLeague = nextLeague;
+    s.league = nextLeague;
+    s.clubPrestige = Math.round(
+      clamp(s.clubPrestige + (wonSecondDivision ? 8 : -8), 38, 96),
+    );
+  }
   s.news = [
+    ...(rec.leagueMovement
+      ? [
+          {
+            id: `${s.season}-league-movement`,
+            type: "mundo" as const,
+            headline: `${s.club} consigue el ${rec.leagueMovement.toLowerCase()}`,
+            detail: `La próxima temporada jugará en ${nextLeague}.`,
+            season: s.season,
+          },
+        ]
+      : []),
     {
       id: `${s.season}-season`,
       type: "partido",
       headline: `${s.name} cierra el año con ${g} goles y ${a} asistencias`,
-      detail: `${pj} partidos · valoración ${rating}`,
+      detail: `${pj} partidos (${calendar.league} de liga · ${calendar.cups} de copas · ${calendar.international} internacionales) · valoración ${rating}`,
       season: s.season,
     },
     ...(injury
@@ -692,7 +828,7 @@ export function simulateSeason(current: CareerState): CareerState {
       : null,
   ].filter(Boolean) as Achievement[];
   s.achievements.push(...ach);
-  s.lastSummary = `${pj} PJ · ${g} G · ${a} A · ${rating} valoración${injury ? ` · ${injury}` : ""}`;
+  s.lastSummary = `${pj} PJ (${calendar.league} liga · ${calendar.cups} copas · ${calendar.international} internacional) · ${g} G · ${a} A · ${rating} valoración${rec.leagueMovement ? ` · ${rec.leagueMovement} a ${nextLeague}` : ""}${injury ? ` · ${injury}` : ""}`;
   s.age++;
   s.season++;
   if (

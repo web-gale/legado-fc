@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acceptOffer, createCareer, simulateSeason } from "../src/game/engine";
+import { acceptOffer, createCareer, nextLeagueAfterSeason, simulateSeason } from "../src/game/engine";
 import { COUNTRIES } from "../src/game/data";
+import { sportsDbTeamScore } from "../src/game/crests";
 
 test("cada nacionalidad inicia libre y recibe una oferta de su país", () => {
   COUNTRIES.forEach((nationality, index) => {
@@ -48,7 +49,13 @@ test("Fácil garantiza máxima participación, éxito y producción por posició
     }, 7000 + index);
     const result = simulateSeason(acceptOffer(free, free.offers[0]));
     const season = result.history.at(-1)!;
-    assert.equal(season.appearances, 42);
+    assert.ok(season.appearances > 42);
+    assert.equal(
+      season.appearances,
+      (season.leagueMatches ?? 0) +
+        (season.cupMatches ?? 0) +
+        (season.internationalMatches ?? 0),
+    );
     assert.equal(season.minutes, season.appearances * 90);
     assert.equal(season.injury, undefined);
     assert.ok(season.titles.length >= 1);
@@ -58,6 +65,70 @@ test("Fácil garantiza máxima participación, éxito y producción por posició
       assert.ok(season.assists / season.appearances >= 0.5);
     }
   });
+});
+
+test("Normal disputa al menos 80% del calendario total y alcanza sus mínimos", () => {
+  const free = createCareer({
+    name: "Profesional de prueba",
+    nationality: "España",
+    position: "DFC",
+    personality: "Profesional",
+    difficulty: "Profesional",
+  }, 4555);
+  const season = simulateSeason(acceptOffer(free, free.offers[0])).history.at(-1)!;
+  const total =
+    (season.leagueMatches ?? 0) +
+    (season.cupMatches ?? 0) +
+    (season.internationalMatches ?? 0);
+  assert.ok((season.cupMatches ?? 0) > 0);
+  assert.ok(season.appearances >= Math.ceil(total * 0.8));
+  assert.ok(season.goals / season.appearances >= 0.58);
+  assert.ok(season.assists / season.appearances >= 0.2);
+});
+
+test("el campeón de segunda asciende y conserva el club", () => {
+  const free = createCareer({
+    name: "Capitán del ascenso",
+    nationality: "España",
+    position: "MP",
+    personality: "Líder",
+    difficulty: "Promesa",
+  }, 9201);
+  const signed = acceptOffer(free, free.offers[0]);
+  const result = simulateSeason(signed);
+  assert.equal(result.club, signed.club);
+  assert.equal(result.league, "España - LaLiga");
+  assert.equal(result.history.at(-1)?.leagueMovement, "Ascenso");
+  assert.equal(result.history.at(-1)?.nextLeague, "España - LaLiga");
+});
+
+test("las reglas de ascenso y descenso enlazan ambas divisiones", () => {
+  assert.equal(
+    nextLeagueAfterSeason("Inglaterra - EFL Championship (2ª)", true, false),
+    "Inglaterra - Premier League",
+  );
+  assert.equal(
+    nextLeagueAfterSeason("Brasil - Brasileirão (Série A)", false, true),
+    "Brasil - Série B (2ª)",
+  );
+});
+
+test("el resolvedor de escudos rechaza clubes homónimos de otro país", () => {
+  const paraguayan = sportsDbTeamScore("Nacional", "Paraguay", {
+    strTeam: "Club Nacional",
+    strSport: "Soccer",
+    strCountry: "Paraguay",
+    strBadge: "https://example.test/nacional-paraguay.png",
+  });
+  const uruguayan = sportsDbTeamScore("Nacional", "Paraguay", {
+    strTeam: "Club Nacional de Football",
+    strSport: "Soccer",
+    strCountry: "Uruguay",
+    strBadge: "https://example.test/nacional-uruguay.png",
+  });
+  assert.ok(paraguayan > uruguayan);
+  assert.ok(paraguayan >= 70);
+  assert.ok(uruguayan < 70);
 });
 
 test("Fácil varía goles y asistencias entre temporadas sin usar cifras fijas", () => {
