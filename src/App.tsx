@@ -170,7 +170,7 @@ function ClubCrest({
       return;
     }
     const country = league.split(" - ")[0];
-    const key = `legado-crest:v2:${club}:${country}`;
+    const key = `legado-crest:v3:${club}:${country}`;
     const cached = localStorage.getItem(key);
     if (cached) {
       setLogo(cached);
@@ -200,11 +200,11 @@ function ClubCrest({
       title={
         club === "Agente libre"
           ? "Jugador sin club"
-          : `${club} · imagen de Wikipedia/Wikimedia`
+          : `${club} · escudo original verificado`
       }
     >
       {logo && !failed ? (
-        // Wikimedia serves the original crest and the URL is discovered at runtime.
+        // The resolver validates the club identity before accepting a crest.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={logo}
@@ -244,7 +244,7 @@ function SeasonReport({
         <h2 id="season-report-title">Noche de campeones</h2>
         <p>{report.club} · {report.league}</p>
         <div className="report-stats">
-          <Stat label="PARTIDOS" value={report.appearances} sub={`${report.minutes} minutos`} />
+          <Stat label="PARTIDOS" value={report.appearances} sub={`${report.leagueMatches ?? report.appearances} liga · ${report.cupMatches ?? 0} copas · ${report.internationalMatches ?? 0} internacional`} />
           <Stat label="GOLES" value={report.goals} sub={`${(report.goals / Math.max(1, report.appearances)).toFixed(2)} por partido`} />
           <Stat label="ASISTENCIAS" value={report.assists} sub={`${(report.assists / Math.max(1, report.appearances)).toFixed(2)} por partido`} />
           <Stat label="VALORACIÓN" value={report.rating} />
@@ -825,8 +825,9 @@ function CareerGame() {
             )}
           </div>
           <p className="logo-source">
-            Escudos obtenidos automáticamente desde Wikipedia/Wikimedia. Si no
-            existe una imagen compatible, se muestran las iniciales del club.
+            Escudos originales obtenidos desde proveedores deportivos y fuentes
+            verificadas. Si ninguna imagen coincide de forma segura, se muestran
+            las iniciales del club.
           </p>
           <section className="panel news">
             <h2>Noticias del mundo</h2>

@@ -64,6 +64,31 @@ const SEARCH_ALIASES: Record<string, string> = {
   "Francia:Paris FC": "Paris Football Club",
 };
 
+const SPORTS_DB_COUNTRIES: Record<string, string[]> = {
+  Paraguay: ["Paraguay"],
+  Argentina: ["Argentina"],
+  Brasil: ["Brazil", "Brasil"],
+  Uruguay: ["Uruguay"],
+  Ecuador: ["Ecuador"],
+  España: ["Spain", "España"],
+  Inglaterra: ["England", "United Kingdom", "Inglaterra"],
+  Italia: ["Italy", "Italia"],
+  Alemania: ["Germany", "Alemania"],
+  Francia: ["France", "Francia"],
+  México: ["Mexico", "México"],
+  "Estados Unidos": ["United States", "USA", "United States of America"],
+  "Arabia Saudita": ["Saudi Arabia", "Arabia Saudita"],
+};
+
+type SportsDbTeam = {
+  strTeam?: string;
+  strTeamAlternate?: string;
+  strSport?: string;
+  strCountry?: string;
+  strBadge?: string;
+  strLogo?: string;
+};
+
 type SearchResult = { title: string; snippet?: string };
 type Entity = {
   labels?: Record<string, { value: string }>;
@@ -82,6 +107,45 @@ const normalize = (value: string) =>
     .trim();
 
 const words = (value: string) => new Set(normalize(value).split(" ").filter(Boolean));
+
+export function sportsDbTeamScore(
+  club: string,
+  country: string,
+  team: SportsDbTeam,
+) {
+  if (team.strSport && !/soccer|football/i.test(team.strSport)) return -500;
+  const candidates = [team.strTeam, team.strTeamAlternate].filter(Boolean) as string[];
+  const wanted = words(club);
+  const nameScore = candidates.reduce((best, candidate) => {
+    const found = words(candidate);
+    const common = [...wanted].filter((word) => found.has(word)).length;
+    const coverage = common / Math.max(1, wanted.size);
+    const exact = normalize(club) === normalize(candidate);
+    return Math.max(best, (exact ? 100 : 0) + coverage * 70 - Math.abs(found.size - wanted.size) * 2);
+  }, -500);
+  const acceptedCountries = SPORTS_DB_COUNTRIES[country] ?? [country];
+  const countryMatches = acceptedCountries.some(
+    (candidate) => normalize(candidate) === normalize(team.strCountry ?? ""),
+  );
+  return nameScore + (countryMatches ? 30 : team.strCountry ? -80 : 0) + (team.strBadge ? 10 : 0);
+}
+
+async function resolveSportsDbCrest(club: string, country: string, term: string) {
+  const query = new URLSearchParams({ t: term });
+  const response = await fetch(
+    `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?${query}`,
+  );
+  if (!response.ok) return null;
+  const data = (await response.json()) as { teams?: SportsDbTeam[] | null };
+  const team = (data.teams ?? [])
+    .map((candidate) => ({
+      candidate,
+      score: sportsDbTeamScore(club, country, candidate),
+    }))
+    .filter(({ candidate, score }) => score >= 70 && Boolean(candidate.strBadge))
+    .sort((a, b) => b.score - a.score)[0]?.candidate;
+  return team?.strBadge ?? team?.strLogo ?? null;
+}
 
 export function crestCandidateScore(club: string, entity: Entity) {
   const label = entity.labels?.es?.value ?? entity.labels?.en?.value ?? "";
@@ -102,6 +166,13 @@ export async function resolveClubCrest(club: string, league: string) {
   const countryQid = COUNTRY_QIDS[country];
   if (!countryQid) return null;
   const term = SEARCH_ALIASES[`${country}:${club}`] ?? club;
+  try {
+    const providerCrest = await resolveSportsDbCrest(club, country, term);
+    if (providerCrest) return providerCrest;
+  } catch {
+    // Continue with the verified Wikimedia resolver when the sports provider
+    // is unavailable or does not catalogue this club.
+  }
   const override = ENTITY_OVERRIDES[`${country}:${club}`];
   let ids: string[] = override ? [override] : [];
   if (!override) {

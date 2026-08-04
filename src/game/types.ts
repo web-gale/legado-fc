@@ -50,6 +50,9 @@ export type SeasonRecord = {
   club: string;
   league: string;
   appearances: number;
+  leagueMatches?: number;
+  cupMatches?: number;
+  internationalMatches?: number;
   minutes: number;
   goals: number;
   assists: number;
@@ -64,6 +67,8 @@ export type SeasonRecord = {
   nationalCaps: number;
   nationalGoals: number;
   injury?: string;
+  leagueMovement?: "Ascenso" | "Descenso";
+  nextLeague?: string;
   transferFee?: number;
 };
 export type NewsItem = {
