@@ -63,6 +63,7 @@ export type Standing = {
 
 export type SportsSnapshot = {
   sport: SportId;
+  requestedDate: string;
   matches: Match[];
   standings: Standing[];
   source: "live" | "cache" | "demo";
@@ -138,10 +139,11 @@ function sportDefinition(id: SportId) {
   return SPORTS.find((sport) => sport.id === id) ?? SPORTS[0];
 }
 
-function fallbackFor(sport: SportId): SportsSnapshot {
+function fallbackFor(sport: SportId, requestedDate = localDate()): SportsSnapshot {
   const definition = sportDefinition(sport);
   return {
     sport,
+    requestedDate,
     provider: "API-SPORTS",
     source: "demo",
     updatedAt: new Date().toISOString(),
@@ -150,7 +152,7 @@ function fallbackFor(sport: SportId): SportsSnapshot {
       id: `demo-${sport}-${index + 1}`,
       sport,
       league: `${definition.apiLabel} · Cobertura mundial`,
-      date: new Date(Date.now() + index * 86400000).toISOString().slice(0, 10),
+      date: requestedDate,
       time: homeScore === null ? "20:00" : "Final",
       home,
       away,
@@ -261,9 +263,22 @@ async function request<T>(definition: SportDefinition, endpoint: string, params:
   return { data: data.response, quota: Number.isFinite(quota) ? quota : undefined };
 }
 
-function readCache(sport: SportId, allowStale = false): SportsSnapshot | null {
+function localDate(timezone = defaultSettings.timezone) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function normalizeDate(value: string | undefined, timezone = defaultSettings.timezone) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value || "") ? String(value) : localDate(timezone);
+}
+
+function readCache(sport: SportId, requestedDate: string, allowStale = false): SportsSnapshot | null {
   try {
-    const cached = JSON.parse(localStorage.getItem(`${CACHE_PREFIX}:${sport}`) || "null") as SportsSnapshot | null;
+    const cached = JSON.parse(localStorage.getItem(`${CACHE_PREFIX}:${sport}:${requestedDate}`) || "null") as SportsSnapshot | null;
     if (!cached || cached.sport !== sport) return null;
     if (!allowStale && Date.now() - Date.parse(cached.updatedAt) > CACHE_TTL) return null;
     return { ...cached, source: "cache" };
@@ -283,19 +298,19 @@ export async function testApiSportsConnection(settings = getApiSportsSettings())
   }
 }
 
-export async function loadSportsSnapshot(force = false, selectedSport?: SportId): Promise<SportsSnapshot> {
+export async function loadSportsSnapshot(force = false, selectedSport?: SportId, selectedDate?: string): Promise<SportsSnapshot> {
   const settings = { ...getApiSportsSettings(), ...(selectedSport ? { sport: selectedSport } : {}) };
   const definition = sportDefinition(settings.sport);
+  const requestedDate = normalizeDate(selectedDate, settings.timezone);
   if (!force) {
-    const fresh = readCache(settings.sport);
+    const fresh = readCache(settings.sport, requestedDate);
     if (fresh) return fresh;
   }
-  if (!PROXY_ROOT && !settings.apiKey) return readCache(settings.sport, true) ?? fallbackFor(settings.sport);
+  if (!PROXY_ROOT && !settings.apiKey) return readCache(settings.sport, requestedDate, true) ?? fallbackFor(settings.sport, requestedDate);
   try {
-    const today = new Intl.DateTimeFormat("en-CA", { timeZone: settings.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const eventParams = definition.endpoint === "races"
       ? new URLSearchParams({ season: settings.season, type: "race" })
-      : new URLSearchParams({ date: today, timezone: settings.timezone });
+      : new URLSearchParams({ date: requestedDate, timezone: settings.timezone });
     const events = await request<any[]>(definition, definition.endpoint, eventParams, settings.apiKey);
     let standings: Standing[] = [];
     let quotaRemaining = events.quota;
@@ -308,23 +323,28 @@ export async function loadSportsSnapshot(force = false, selectedSport?: SportId)
         standings = [];
       }
     }
-    const liveMatches = events.data.slice(0, 20).map((item) => settings.sport === "football" ? mapFootballFixture(item as ApiFootballFixture) : mapGenericGame(item, settings.sport));
+    const mappedMatches = events.data.map((item) => settings.sport === "football" ? mapFootballFixture(item as ApiFootballFixture) : mapGenericGame(item, settings.sport));
+    const datedMatches = definition.endpoint === "races"
+      ? mappedMatches.filter((match) => match.date === requestedDate)
+      : mappedMatches;
+    const liveMatches = datedMatches.slice(0, 20);
     const snapshot: SportsSnapshot = {
       sport: settings.sport,
-      matches: liveMatches.length ? liveMatches : fallbackFor(settings.sport).matches,
+      requestedDate,
+      matches: liveMatches,
       standings,
       source: "live",
       provider: "API-SPORTS",
       updatedAt: new Date().toISOString(),
       quotaRemaining,
-      message: liveMatches.length ? `Eventos mundiales de ${definition.label}` : `Conexión válida; no hay eventos de ${definition.label} hoy.`,
+      message: liveMatches.length ? `Eventos de ${definition.label} del ${requestedDate}` : `Conexión válida; no hay eventos de ${definition.label} el ${requestedDate}.`,
     };
-    localStorage.setItem(`${CACHE_PREFIX}:${settings.sport}`, JSON.stringify(snapshot));
+    localStorage.setItem(`${CACHE_PREFIX}:${settings.sport}:${requestedDate}`, JSON.stringify(snapshot));
     return snapshot;
   } catch (error) {
-    const cached = readCache(settings.sport, true);
+    const cached = readCache(settings.sport, requestedDate, true);
     if (cached) return { ...cached, message: "Sin conexión nueva; mostrando la última actualización guardada." };
-    return { ...fallbackFor(settings.sport), message: error instanceof Error ? error.message : "Datos de respaldo activos." };
+    return { ...fallbackFor(settings.sport, requestedDate), message: error instanceof Error ? error.message : "Datos de respaldo activos." };
   }
 }
 

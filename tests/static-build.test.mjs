@@ -22,6 +22,9 @@ test("el portal publica la capa multideporte y conserva el modo carrera", async 
   assert.match(js, /x-apisports-key/);
   assert.match(js, /Todo el deporte/);
   assert.match(js, /Guardar y probar API mundial/);
+  assert.match(js, /RESULTADOS DE LA FECHA/);
+  assert.match(js, /No hay eventos en esta fecha/);
+  assert.match(js, /requestedDate/);
   assert.match(js, /legado:prode/);
   assert.match(js, /Noche de campeones/);
 });
