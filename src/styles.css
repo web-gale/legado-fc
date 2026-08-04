@@ -1075,6 +1075,15 @@ select:focus-visible {
 .match-status.live { color: var(--orange); }
 .api-state { flex-shrink: 0; padding: 8px 12px; border: 1px solid var(--border); color: var(--muted); font-size: 9px; font-weight: 800; }
 .api-state.live { color: #61d095; border-color: #286242; }
+.api-config { margin-top: 28px; padding: clamp(22px, 4vw, 38px); border: 1px solid var(--border); background: var(--panel); }
+.api-config h2 { margin: 8px 0; }
+.api-config p { color: var(--muted); max-width: 760px; }
+.api-config-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 14px; margin-top: 24px; }
+.api-config-grid label { display: grid; gap: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.api-config-grid input { width: 100%; min-width: 0; padding: 13px 14px; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); color: var(--text); font: inherit; }
+.api-config-grid input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.api-config-actions { display: flex; align-items: center; gap: 16px; margin-top: 18px; }
+.api-config-actions small { color: var(--muted); }
 .standings-card { align-self: start; }
 .standings-title { display: flex; justify-content: space-between; padding-bottom: 18px; }
 .standings-title span { color: var(--orange); font-size: 9px; font-weight: 900; letter-spacing: .15em; }
@@ -1118,6 +1127,8 @@ select:focus-visible {
   .career-poster strong { font-size: 43px; }
   .portal-section-head, .prediction-list article { display: block; }
   .api-state { display: inline-block; margin-top: 16px; }
+  .api-config-grid { grid-template-columns: 1fr; }
+  .api-config-actions { align-items: stretch; flex-direction: column; }
   .pick-buttons { margin-top: 18px; }
   .account-panel { display: block; }
   .account-avatar { margin-bottom: 20px; }
