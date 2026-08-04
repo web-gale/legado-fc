@@ -1081,7 +1081,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [sports, setSports] = useState<SportsSnapshot>({ sport: initialSettings.sport, requestedDate: today, matches: [], standings: [], source: "demo", provider: "API-SPORTS", updatedAt: new Date().toISOString() });
   const [apiSettings, setApiSettings] = useState<ApiSportsSettings>(initialSettings);
-  const [apiMessage, setApiMessage] = useState("API‑SPORTS activada para todos los visitantes.");
+  const [apiMessage, setApiMessage] = useState("La clave se guarda únicamente en este navegador.");
   const [sportsBusy, setSportsBusy] = useState(false);
   const c = portalCopy[language];
   useEffect(() => { loadSportsSnapshot(false, initialSettings.sport, today).then(setSports); }, [initialSettings.sport, today]);
@@ -1153,16 +1153,17 @@ export default function App() {
       <span className="portal-kicker">TU ESPACIO</span><h1>Perfil LEGADO</h1>
       <div className="account-panel"><div className="account-avatar">LF</div><div><h2>Jugador local</h2><p>Tus carreras, pronósticos, idioma y preferencias se guardan en este dispositivo.</p><button className="portal-primary" onClick={() => go("juegos")}>Abrir mi carrera</button></div></div>
       <div className="api-config">
-        <div><span className="portal-kicker">DATOS DEPORTIVOS MUNDIALES</span><h2>API‑SPORTS activada</h2><p>Todos los visitantes pueden consultar fútbol, básquetbol, NBA, béisbol, Fórmula 1, handball, hockey, MMA, NFL/NCAA, rugby, vóley y AFL sin configurar una clave. Se consulta solo el deporte elegido y se guarda caché durante 15 minutos.</p></div>
+        <div><span className="portal-kicker">DATOS DEPORTIVOS MUNDIALES</span><h2>Conectar API‑SPORTS</h2><p>Una sola configuración para consultar fútbol, básquetbol, NBA, béisbol, Fórmula 1, handball, hockey, MMA, NFL/NCAA, rugby, vóley y AFL. Se consulta solo el deporte elegido y se guarda caché durante 15 minutos.</p></div>
         <div className="api-sport-config"><SportSelector selected={apiSettings.sport} select={(sport) => setApiSettings({ ...apiSettings, sport })} /></div>
         <div className="api-config-grid">
+          <label>Clave API<input type="password" autoComplete="off" placeholder="x-apisports-key" value={apiSettings.apiKey} onChange={(e) => setApiSettings({ ...apiSettings, apiKey: e.target.value })} /></label>
           {apiSettings.sport === "football" && <label>ID de liga<input inputMode="numeric" value={apiSettings.leagueId} onChange={(e) => setApiSettings({ ...apiSettings, leagueId: e.target.value })} /></label>}
           <label>Temporada<input inputMode="numeric" value={apiSettings.season} onChange={(e) => setApiSettings({ ...apiSettings, season: e.target.value })} /></label>
           <label>Zona horaria<input value={apiSettings.timezone} onChange={(e) => setApiSettings({ ...apiSettings, timezone: e.target.value })} /></label>
         </div>
-        <div className="api-config-actions"><button className="portal-primary" disabled={sportsBusy} onClick={connectApiSports}>{sportsBusy ? "Probando…" : "Guardar ajustes y probar"}</button><small>{apiMessage}</small></div>
+        <div className="api-config-actions"><button className="portal-primary" disabled={sportsBusy} onClick={connectApiSports}>{sportsBusy ? "Probando…" : "Guardar y probar API mundial"}</button><small>{apiMessage}</small></div>
       </div>
-      <p className="portal-muted">La prueba de cuenta y la carga de eventos son independientes: que no haya encuentros en una fecha no se mostrará como una clave inválida. Si se alcanza la cuota diaria, LEGADO FC conserva la última actualización guardada y activa los datos de respaldo.</p>
+      <p className="portal-muted">La prueba de cuenta y la carga de eventos son independientes: que no haya encuentros en una fecha no se mostrará como una clave inválida. Para una publicación masiva configura VITE_API_SPORTS_PROXY_URL y conserva la clave fuera del código público.</p>
     </section>}
 
     <div className="portal-footer"><button className="portal-brand" onClick={() => go("inicio")}><b>LEGADO</b><em>FC</em></button><span>Deportes mundiales · Resultados · Estadísticas · Análisis · Juegos</span><span>© 2026 LEGADO FC</span></div>
