@@ -105,7 +105,12 @@ type ApiFootballStanding = {
 
 type GenericGame = Record<string, any>;
 
-const PROXY_ROOT = String(import.meta.env.VITE_API_SPORTS_PROXY_URL || import.meta.env.VITE_API_FOOTBALL_PROXY_URL || "").replace(/\/$/, "");
+const PUBLIC_PROXY_ROOT = "https://legado-fc-sports-api.bovedaiados.chatgpt.site";
+const PROXY_ROOT = String(
+  import.meta.env.VITE_API_SPORTS_PROXY_URL ||
+    import.meta.env.VITE_API_FOOTBALL_PROXY_URL ||
+    PUBLIC_PROXY_ROOT,
+).replace(/\/$/, "");
 const SETTINGS_KEY = "legado:api-sports:settings";
 const LEGACY_SETTINGS_KEY = "legado:api-football:settings";
 const CACHE_PREFIX = "legado:sports:api-sports:v2";
