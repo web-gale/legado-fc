@@ -6,7 +6,7 @@ Plataforma deportiva mundial con resultados, estadísticas, análisis, pronósti
 
 La capa API‑SPORTS permite elegir y consultar fútbol, básquetbol/NBA, béisbol, Fórmula 1, handball, hockey, MMA, NFL/NCAA, rugby, vóley y AFL. Cada deporte usa su API oficial, caché local de 15 minutos y datos de respaldo. La autenticación se valida con `/status`, separada de la disponibilidad de eventos del día.
 
-La clave nunca forma parte del repositorio. En uso personal puede guardarse solo en el navegador; en producción debe protegerse mediante `VITE_API_SPORTS_PROXY_URL` y la lista blanca de dominios de API‑SPORTS.
+La clave nunca forma parte del repositorio ni del navegador. El sitio usa automáticamente un proxy público seguro que conserva `API_SPORTS_KEY` como secreto del servidor. `VITE_API_SPORTS_PROXY_URL` permite sustituir ese proxy en otro despliegue.
 
 ## Publicar en GitHub Pages
 
