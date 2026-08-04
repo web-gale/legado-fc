@@ -1018,11 +1018,24 @@ function SportSelector({ selected, select, busy = false }: { selected: SportId; 
   </div>;
 }
 
-function MatchCenter({ snapshot, selectSport, busy }: { snapshot: SportsSnapshot; selectSport: (sport: SportId) => void; busy: boolean }) {
+function MatchCenter({ snapshot, selectSport, busy, selectedDate, changeDate, reload }: { snapshot: SportsSnapshot; selectSport: (sport: SportId) => void; busy: boolean; selectedDate: string; changeDate: (date: string) => void; reload: () => void }) {
   const definition = SPORTS.find(sport => sport.id === snapshot.sport) ?? SPORTS[0];
+  const today = new Date().toISOString().slice(0, 10);
+  const shiftDate = (days: number) => {
+    const date = new Date(`${selectedDate}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    changeDate(date.toISOString().slice(0, 10));
+  };
   return <section className="portal-content">
     <div className="portal-section-head"><div><span className="portal-kicker">CENTRO MUNDIAL · {definition.apiLabel.toUpperCase()}</span><h1>{definition.emoji} {definition.label} en vivo.</h1><p>{snapshot.message}</p></div><span className={`api-state ${snapshot.source}`}>{busy ? "● Actualizando…" : snapshot.source === "live" ? `● API conectada${snapshot.quotaRemaining !== undefined ? ` · ${snapshot.quotaRemaining} consultas` : ""}` : snapshot.source === "cache" ? "● Última actualización guardada" : "● Datos de demostración"}</span></div>
     <SportSelector selected={snapshot.sport} select={selectSport} busy={busy} />
+    <div className="date-browser" aria-label="Consultar resultados por fecha">
+      <button disabled={busy} onClick={() => shiftDate(-1)} aria-label="Día anterior">←</button>
+      <label><span>RESULTADOS DE LA FECHA</span><input type="date" max={today} value={selectedDate} disabled={busy} onChange={(event) => changeDate(event.target.value)} /></label>
+      <button disabled={busy || selectedDate >= today} onClick={() => shiftDate(1)} aria-label="Día siguiente">→</button>
+      <button className="date-today" disabled={busy || selectedDate === today} onClick={() => changeDate(today)}>Hoy</button>
+      <button className="date-reload" disabled={busy} onClick={reload}>Actualizar</button>
+    </div>
     <div className="match-layout">
       <div className="match-list">
         {snapshot.matches.map(match => <article className="match-card" key={match.id}>
@@ -1031,6 +1044,7 @@ function MatchCenter({ snapshot, selectSport, busy }: { snapshot: SportsSnapshot
           <div className="match-team"><PortalCrest src={match.awayBadge} name={match.away} /><strong>{match.away}</strong><b>{match.awayScore ?? "—"}</b></div>
           <small className={`match-status ${match.status}`}>{match.status === "live" ? "EN JUEGO" : match.status === "finished" ? "FINAL" : "PRÓXIMO"}</small>
         </article>)}
+        {!snapshot.matches.length && <div className="empty-results"><b>📅</b><h3>No hay eventos en esta fecha</h3><p>Elegí otro día para consultar resultados anteriores o próximos encuentros.</p></div>}
       </div>
       <aside className="standings-card">
         <div className="standings-title"><span>{snapshot.standings.length ? "TABLA" : "COBERTURA"}</span><strong>{snapshot.standings.length ? "Clasificación" : definition.label}</strong></div>
@@ -1063,12 +1077,14 @@ export default function App() {
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("legado:portal-theme") as "dark" | "light") || "dark");
   const [cookies, setCookies] = useState(() => localStorage.getItem("legado:cookies") || "");
   const initialSettings = useMemo(() => getApiSportsSettings(), []);
-  const [sports, setSports] = useState<SportsSnapshot>({ sport: initialSettings.sport, matches: [], standings: [], source: "demo", provider: "API-SPORTS", updatedAt: new Date().toISOString() });
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [sports, setSports] = useState<SportsSnapshot>({ sport: initialSettings.sport, requestedDate: today, matches: [], standings: [], source: "demo", provider: "API-SPORTS", updatedAt: new Date().toISOString() });
   const [apiSettings, setApiSettings] = useState<ApiSportsSettings>(initialSettings);
-  const [apiMessage, setApiMessage] = useState("La clave se guarda únicamente en este navegador.");
+  const [apiMessage, setApiMessage] = useState("API‑SPORTS activada para todos los visitantes.");
   const [sportsBusy, setSportsBusy] = useState(false);
   const c = portalCopy[language];
-  useEffect(() => { loadSportsSnapshot(false, initialSettings.sport).then(setSports); }, [initialSettings.sport]);
+  useEffect(() => { loadSportsSnapshot(false, initialSettings.sport, today).then(setSports); }, [initialSettings.sport, today]);
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem("legado:portal-theme", theme); }, [theme]);
   const go = (next: PortalSection) => { setSection(next); location.hash = next; scrollTo({ top: 0, behavior: "smooth" }); };
   const setLang = (next: PortalLanguage) => { setLanguage(next); localStorage.setItem("legado:language", next); };
@@ -1077,7 +1093,19 @@ export default function App() {
     setApiSettings(next);
     saveApiSportsSettings(next);
     setSportsBusy(true);
-    setSports(await loadSportsSnapshot(false, sport));
+    setSports(await loadSportsSnapshot(false, sport, selectedDate));
+    setSportsBusy(false);
+  };
+  const chooseDate = async (date: string) => {
+    if (!date || date > today) return;
+    setSelectedDate(date);
+    setSportsBusy(true);
+    setSports(await loadSportsSnapshot(false, apiSettings.sport, date));
+    setSportsBusy(false);
+  };
+  const reloadSports = async () => {
+    setSportsBusy(true);
+    setSports(await loadSportsSnapshot(true, apiSettings.sport, selectedDate));
     setSportsBusy(false);
   };
   const connectApiSports = async () => {
@@ -1090,7 +1118,7 @@ export default function App() {
       setSportsBusy(false);
       return;
     }
-    const snapshot = await loadSportsSnapshot(true, apiSettings.sport);
+    const snapshot = await loadSportsSnapshot(true, apiSettings.sport, selectedDate);
     setSports(snapshot);
     setSportsBusy(false);
     setApiMessage(`${test.message}${snapshot.message ? ` ${snapshot.message}` : ""}`);
@@ -1118,24 +1146,23 @@ export default function App() {
       <section className="featured-game"><div><span className="portal-kicker">MINIJUEGO PRINCIPAL</span><h2>Construí tu propia carrera futbolística</h2><p>Elegí tu origen, posición y dificultad. Tomá decisiones, cambiá de club y convertí cada temporada en una historia única.</p><div className="difficulty-pills"><span>Fácil · Éxito total</span><span>Normal · Carrera legendaria</span><span>Difícil · Máximo desafío</span></div><button className="portal-primary" onClick={() => go("juegos")}>Empezar carrera →</button></div><div className="career-poster"><span>LEGADO</span><strong>TU NOMBRE<br/>EN LA HISTORIA</strong><small>Simulador de carrera · Temporada 2026</small></div></section>
       <section className="portal-articles"><div className="portal-section-head"><div><span className="portal-kicker">LECTURA DEPORTIVA</span><h2>Análisis sin fronteras</h2></div><button onClick={() => go("analisis")}>Ver todo →</button></div><div className="article-grid">{articles.slice(0, 3).map((a, i) => <article key={a.title}><span>0{i + 1} · {a.tag}</span><h3>{a.title}</h3><p>{a.text}</p></article>)}</div></section>
     </>}
-    {section === "deportes" && <MatchCenter snapshot={sports} selectSport={selectSport} busy={sportsBusy} />}
+    {section === "deportes" && <MatchCenter snapshot={sports} selectSport={selectSport} busy={sportsBusy} selectedDate={selectedDate} changeDate={chooseDate} reload={reloadSports} />}
     {section === "prode" && <PredictionGame matches={sports.matches} />}
     {section === "analisis" && <section className="portal-content"><div className="portal-section-head"><div><span className="portal-kicker">ANÁLISIS, HISTORIA Y DATOS</span><h1>Entender el deporte cambia cómo lo vivís.</h1></div></div><div className="analysis-grid">{articles.map((a, i) => <article key={`${a.title}-${i}`}><span>{a.tag} · LECTURA {i + 1}</span><h2>{a.title}</h2><p>{a.text}</p><button>Leer análisis →</button></article>)}</div></section>}
     {section === "cuenta" && <section className="portal-content account-page">
       <span className="portal-kicker">TU ESPACIO</span><h1>Perfil LEGADO</h1>
       <div className="account-panel"><div className="account-avatar">LF</div><div><h2>Jugador local</h2><p>Tus carreras, pronósticos, idioma y preferencias se guardan en este dispositivo.</p><button className="portal-primary" onClick={() => go("juegos")}>Abrir mi carrera</button></div></div>
       <div className="api-config">
-        <div><span className="portal-kicker">DATOS DEPORTIVOS MUNDIALES</span><h2>Conectar API‑SPORTS</h2><p>Una sola configuración para consultar fútbol, básquetbol, NBA, béisbol, Fórmula 1, handball, hockey, MMA, NFL/NCAA, rugby, vóley y AFL. Se consulta solo el deporte elegido y se guarda caché durante 15 minutos.</p></div>
+        <div><span className="portal-kicker">DATOS DEPORTIVOS MUNDIALES</span><h2>API‑SPORTS activada</h2><p>Todos los visitantes pueden consultar fútbol, básquetbol, NBA, béisbol, Fórmula 1, handball, hockey, MMA, NFL/NCAA, rugby, vóley y AFL sin configurar una clave. Se consulta solo el deporte elegido y se guarda caché durante 15 minutos.</p></div>
         <div className="api-sport-config"><SportSelector selected={apiSettings.sport} select={(sport) => setApiSettings({ ...apiSettings, sport })} /></div>
         <div className="api-config-grid">
-          <label>Clave API<input type="password" autoComplete="off" placeholder="x-apisports-key" value={apiSettings.apiKey} onChange={(e) => setApiSettings({ ...apiSettings, apiKey: e.target.value })} /></label>
           {apiSettings.sport === "football" && <label>ID de liga<input inputMode="numeric" value={apiSettings.leagueId} onChange={(e) => setApiSettings({ ...apiSettings, leagueId: e.target.value })} /></label>}
           <label>Temporada<input inputMode="numeric" value={apiSettings.season} onChange={(e) => setApiSettings({ ...apiSettings, season: e.target.value })} /></label>
           <label>Zona horaria<input value={apiSettings.timezone} onChange={(e) => setApiSettings({ ...apiSettings, timezone: e.target.value })} /></label>
         </div>
-        <div className="api-config-actions"><button className="portal-primary" disabled={sportsBusy} onClick={connectApiSports}>{sportsBusy ? "Probando…" : "Guardar y probar API mundial"}</button><small>{apiMessage}</small></div>
+        <div className="api-config-actions"><button className="portal-primary" disabled={sportsBusy} onClick={connectApiSports}>{sportsBusy ? "Probando…" : "Guardar ajustes y probar"}</button><small>{apiMessage}</small></div>
       </div>
-      <p className="portal-muted">La prueba de cuenta y la carga de eventos son independientes: que hoy no haya encuentros ya no se mostrará como una clave inválida. Para una publicación masiva configura VITE_API_SPORTS_PROXY_URL y protege la clave con la lista blanca de dominios del proveedor.</p>
+      <p className="portal-muted">La prueba de cuenta y la carga de eventos son independientes: que no haya encuentros en una fecha no se mostrará como una clave inválida. Si se alcanza la cuota diaria, LEGADO FC conserva la última actualización guardada y activa los datos de respaldo.</p>
     </section>}
 
     <div className="portal-footer"><button className="portal-brand" onClick={() => go("inicio")}><b>LEGADO</b><em>FC</em></button><span>Deportes mundiales · Resultados · Estadísticas · Análisis · Juegos</span><span>© 2026 LEGADO FC</span></div>
