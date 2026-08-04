@@ -438,6 +438,34 @@ nav button.active:after {
   gap: 10px;
   padding: 14px;
 }
+.legacy-download {
+  margin-top: 30px;
+  padding: clamp(24px, 4vw, 42px);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--orange);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--panel) 94%, var(--cyan)), var(--panel));
+}
+.legacy-download h2 {
+  margin: 8px 0;
+  font-size: clamp(27px, 4vw, 44px);
+}
+.legacy-download p:not(.eyebrow) {
+  max-width: 720px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.legacy-download-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  max-width: 470px;
+}
+.legacy-download-actions button { min-height: 48px; }
 .stat {
   border: 1px solid var(--border);
   padding: 17px;
@@ -1140,6 +1168,9 @@ select:focus-visible {
   .article-grid, .analysis-grid { grid-template-columns: repeat(2,1fr); }
 }
 @media (max-width: 680px) {
+  .legacy-download { grid-template-columns: 1fr; }
+  .legacy-download-actions { justify-content: stretch; max-width: none; }
+  .legacy-download-actions button { width: 100%; }
   .portal-brand small, .portal-topline > span, .portal-actions .account-button { display: none; }
   .portal-header { height: 66px; }
   .portal-hero { min-height: auto; padding: 50px 18px; }

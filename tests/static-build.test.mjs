@@ -41,3 +41,11 @@ test("la base inicial completa se publica con el juego", async () => {
   assert.equal(clubs.includes("Real Madrid"), true);
   assert.equal((await stat(new URL("../dist/index.html", import.meta.url))).isFile(), true);
 });
+
+test("la carrera retirada genera una tarjeta PNG lista para compartir", async () => {
+  const source = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.match(source, /Descargar tarjeta PNG/);
+  assert.match(source, /canvas\.toDataURL\("image\/png"/);
+  assert.match(source, /PNG 1080 × 1350/);
+  assert.match(source, /Añadir foto \(opcional\)/);
+});

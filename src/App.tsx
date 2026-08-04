@@ -397,8 +397,11 @@ function CareerGame() {
     [newOpen, setNewOpen] = useState(false),
     [seasonReport, setSeasonReport] = useState<SeasonRecord | null>(null),
     [busy, setBusy] = useState(false),
-    [save, setSave] = useState("Partida local lista");
+    [save, setSave] = useState("Partida local lista"),
+    [cardPhoto, setCardPhoto] = useState<string | null>(null),
+    [cardBusy, setCardBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
+  const photoFile = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const saved = localStorage.getItem("legado-career");
     if (saved)
@@ -466,6 +469,117 @@ function CareerGame() {
     a.href = URL.createObjectURL(b);
     a.download = `legado-${state.name.replace(/\s+/g, "-")}.json`;
     a.click();
+  };
+  const loadCardPhoto = (f?: File) => {
+    if (!f || !f.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => setCardPhoto(String(reader.result));
+    reader.readAsDataURL(f);
+  };
+  const downloadLegacyCard = async () => {
+    if (state.status !== "retired") return;
+    setCardBusy(true);
+    try {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas no disponible");
+      canvas.width = 1080;
+      canvas.height = 1350;
+      const orange = "#ff4a16", cyan = "#27c9d7", ink = "#080d0e", pale = "#f2eee6";
+      const fit = (value: string, max: number, initial: number, weight = 800) => {
+        let size = initial;
+        ctx.font = `${weight} ${size}px Arial, sans-serif`;
+        while (ctx.measureText(value).width > max && size > 22) {
+          size -= 2;
+          ctx.font = `${weight} ${size}px Arial, sans-serif`;
+        }
+        return size;
+      };
+      const text = (value: string, x: number, y: number, size: number, color = pale, weight = 800, align: CanvasTextAlign = "left") => {
+        ctx.fillStyle = color;
+        ctx.textAlign = align;
+        ctx.font = `${weight} ${size}px Arial, sans-serif`;
+        ctx.fillText(value, x, y);
+      };
+      const stat = (label: string, value: string | number, x: number, y: number) => {
+        text(String(value), x, y, 54, pale, 900, "center");
+        text(label, x, y + 33, 17, "#9ba4a5", 800, "center");
+      };
+      const gradient = ctx.createLinearGradient(0, 0, 1080, 1350);
+      gradient.addColorStop(0, "#132022");
+      gradient.addColorStop(.55, ink);
+      gradient.addColorStop(1, "#28110b");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1080, 1350);
+      ctx.fillStyle = "rgba(39,201,215,.10)";
+      ctx.beginPath();
+      ctx.arc(170, 310, 330, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = orange;
+      ctx.fillRect(0, 0, 1080, 14);
+      ctx.fillRect(70, 1168, 940, 3);
+      text("LEGADO", 70, 85, 44, pale, 900);
+      text("FC", 270, 85, 44, orange, 900);
+      text("CARRERA FINALIZADA", 1010, 78, 17, cyan, 900, "right");
+      text(String(state.overall), 880, 225, 128, pale, 900, "center");
+      text("VALORACIÓN FINAL", 880, 264, 17, "#9ba4a5", 800, "center");
+      ctx.strokeStyle = orange;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(762, 115, 236, 175);
+      if (cardPhoto) {
+        const image = new Image();
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error("Foto inválida"));
+          image.src = cardPhoto;
+        });
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(70, 135, 510, 520, 24);
+        ctx.clip();
+        const scale = Math.max(510 / image.width, 520 / image.height);
+        const width = image.width * scale, height = image.height * scale;
+        ctx.drawImage(image, 70 + (510 - width) / 2, 135 + (520 - height) / 2, width, height);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = "#172628";
+        ctx.fillRect(70, 135, 510, 520);
+        ctx.fillStyle = "#24383a";
+        ctx.beginPath();
+        ctx.arc(325, 300, 112, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(325, 610, 235, 210, 0, Math.PI, 0);
+        ctx.fill();
+        const initials = state.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join("");
+        text(initials, 325, 340, 86, cyan, 900, "center");
+      }
+      text(state.name.toUpperCase(), 70, 735, fit(state.name.toUpperCase(), 900, 67), pale, 900);
+      text(`${state.nationality.toUpperCase()}  ·  ${state.position}  ·  RETIRO A LOS ${state.age}`, 72, 780, 23, orange, 900);
+      stat("PARTIDOS", state.records.appearances ?? 0, 140, 890);
+      stat("GOLES", state.records.goals ?? 0, 340, 890);
+      stat("ASISTENCIAS", state.records.assists ?? 0, 540, 890);
+      stat("SELECCIÓN", state.nationalCaps, 740, 890);
+      stat("TÍTULOS", state.titles.length, 940, 890);
+      text("TRAYECTORIA", 70, 1015, 18, cyan, 900);
+      const clubs = [...new Set(state.history.map((season) => season.club).filter(Boolean))];
+      const route = clubs.length ? clubs.join("  ›  ") : state.club;
+      text(route, 70, 1065, fit(route, 940, 31, 700), pale, 700);
+      text("LEGADO", 70, 1140, 18, cyan, 900);
+      const legend = state.finalLegend ?? "Profesional respetado";
+      text(legend, 70, 1215, fit(legend, 650, 46), pale, 900);
+      text(`${state.history.length} TEMPORADAS  ·  VALOR MÁX. ${cash(state.records.maxValue ?? state.marketValue)}`, 70, 1260, 20, "#9ba4a5", 700);
+      text(`PUNTUACIÓN ${state.records.legacyScore ?? 0}`, 1010, 1230, 22, orange, 900, "right");
+      text("TU HISTORIA. TU CARRERA. TU LEGADO.", 1010, 1280, 15, "#9ba4a5", 800, "right");
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png", 1);
+      a.download = `legado-fc-${state.name.trim().replace(/\s+/g, "-").toLowerCase()}.png`;
+      a.click();
+    } catch {
+      alert("No se pudo generar la imagen. Prueba con otra foto.");
+    } finally {
+      setCardBusy(false);
+    }
   };
   const imp = (f?: File) => {
     if (!f) return;
@@ -976,6 +1090,38 @@ function CareerGame() {
             <Stat label="POPULARIDAD" value={state.popularity} />
             <Stat label="SELECCIÓN" value={`${state.nationalCaps} PJ`} />
           </div>
+          {state.status === "retired" && (
+            <section className="legacy-download">
+              <div>
+                <p className="eyebrow">TARJETA FINAL · PNG 1080 × 1350</p>
+                <h2>Comparte la historia de tu carrera</h2>
+                <p>
+                  Genera una imagen con tus estadísticas, trayectoria y legado.
+                  Puedes añadir una foto personal; nunca sale de este dispositivo.
+                </p>
+              </div>
+              <div className="legacy-download-actions">
+                <button className="secondary" onClick={() => photoFile.current?.click()}>
+                  {cardPhoto ? "Cambiar foto" : "Añadir foto (opcional)"}
+                </button>
+                {cardPhoto && (
+                  <button className="secondary" onClick={() => setCardPhoto(null)}>
+                    Quitar foto
+                  </button>
+                )}
+                <button className="primary" onClick={downloadLegacyCard} disabled={cardBusy}>
+                  {cardBusy ? "Generando imagen…" : "Descargar tarjeta PNG"}
+                </button>
+                <input
+                  ref={photoFile}
+                  hidden
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) => loadCardPhoto(event.target.files?.[0])}
+                />
+              </div>
+            </section>
+          )}
         </section>
       )}
       <footer>
