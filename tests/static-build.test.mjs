@@ -21,7 +21,9 @@ test("el portal publica la capa multideporte y conserva el modo carrera", async 
   assert.match(js, /API-SPORTS/);
   assert.match(js, /x-apisports-key/);
   assert.match(js, /Todo el deporte/);
-  assert.match(js, /Guardar y probar API mundial/);
+  assert.match(js, /API.SPORTS conectada/);
+  assert.match(js, /Comprobar conexión mundial/);
+  assert.match(js, /legado-fc-sports-api\.bovedaiados\.chatgpt\.site/);
   assert.match(js, /RESULTADOS DE LA FECHA/);
   assert.match(js, /No hay eventos en esta fecha/);
   assert.match(js, /requestedDate/);
