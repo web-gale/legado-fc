@@ -8,7 +8,13 @@ import {
 } from "./game/engine";
 import { COUNTRIES, POSITION_LABELS, SEASON_PHASES } from "./game/data";
 import { resolveClubCrest } from "./game/crests";
-import { loadSportsSnapshot, type SportsSnapshot } from "./sports/api";
+import {
+  getApiFootballSettings,
+  loadSportsSnapshot,
+  saveApiFootballSettings,
+  type ApiFootballSettings,
+  type SportsSnapshot,
+} from "./sports/api";
 import {
   PERSONALITIES,
   POSITIONS,
@@ -1000,7 +1006,7 @@ function PortalCrest({ src, name }: { src?: string; name: string }) {
 
 function MatchCenter({ snapshot }: { snapshot: SportsSnapshot }) {
   return <section className="portal-content">
-    <div className="portal-section-head"><div><span className="portal-kicker">CENTRO DE PARTIDOS</span><h1>Todo el fútbol, en una pantalla.</h1></div><span className={`api-state ${snapshot.source}`}>{snapshot.source === "live" ? "● Datos en vivo" : snapshot.source === "cache" ? "● Última actualización" : "● Datos de muestra"}</span></div>
+    <div className="portal-section-head"><div><span className="portal-kicker">CENTRO DE PARTIDOS · API-FOOTBALL</span><h1>Todo el fútbol, en una pantalla.</h1></div><span className={`api-state ${snapshot.source}`}>{snapshot.source === "live" ? `● Datos oficiales${snapshot.quotaRemaining !== undefined ? ` · ${snapshot.quotaRemaining} consultas` : ""}` : snapshot.source === "cache" ? "● Última actualización guardada" : "● Configura la API gratuita"}</span></div>
     <div className="match-layout">
       <div className="match-list">
         {snapshot.matches.map(match => <article className="match-card" key={match.id}>
@@ -1040,12 +1046,21 @@ export default function App() {
   const [language, setLanguage] = useState<PortalLanguage>(() => (localStorage.getItem("legado:language") as PortalLanguage) || "ES");
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("legado:portal-theme") as "dark" | "light") || "dark");
   const [cookies, setCookies] = useState(() => localStorage.getItem("legado:cookies") || "");
-  const [sports, setSports] = useState<SportsSnapshot>({ matches: [], standings: [], source: "demo", updatedAt: new Date().toISOString() });
+  const [sports, setSports] = useState<SportsSnapshot>({ matches: [], standings: [], source: "demo", provider: "API-Football", updatedAt: new Date().toISOString() });
+  const [apiSettings, setApiSettings] = useState<ApiFootballSettings>(() => getApiFootballSettings());
+  const [apiMessage, setApiMessage] = useState("La clave se guarda únicamente en este navegador.");
   const c = portalCopy[language];
   useEffect(() => { loadSportsSnapshot().then(setSports); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem("legado:portal-theme", theme); }, [theme]);
   const go = (next: PortalSection) => { setSection(next); location.hash = next; scrollTo({ top: 0, behavior: "smooth" }); };
   const setLang = (next: PortalLanguage) => { setLanguage(next); localStorage.setItem("legado:language", next); };
+  const connectApiFootball = async () => {
+    saveApiFootballSettings(apiSettings);
+    setApiMessage("Conectando con API-Football…");
+    const snapshot = await loadSportsSnapshot(true);
+    setSports(snapshot);
+    setApiMessage(snapshot.source === "live" ? "API-Football conectada correctamente." : "No se pudo validar la clave o no hay partidos disponibles hoy; se mantienen los datos de respaldo.");
+  };
 
   if (section === "juegos") return <div className="portal-game"><button className="back-portal" onClick={() => go("inicio")}>← Volver a LEGADO FC</button><CareerGame /></div>;
 
@@ -1071,7 +1086,7 @@ export default function App() {
     {section === "futbol" && <MatchCenter snapshot={sports} />}
     {section === "prode" && <PredictionGame matches={sports.matches} />}
     {section === "analisis" && <section className="portal-content"><div className="portal-section-head"><div><span className="portal-kicker">ANÁLISIS, HISTORIA Y DATOS</span><h1>Entender el juego cambia cómo lo vivís.</h1></div></div><div className="analysis-grid">{[...articles, ...articles].map((a, i) => <article key={`${a.title}-${i}`}><span>{a.tag} · LECTURA {i + 1}</span><h2>{a.title}</h2><p>{a.text}</p><button>Leer análisis →</button></article>)}</div></section>}
-    {section === "cuenta" && <section className="portal-content account-page"><span className="portal-kicker">TU ESPACIO</span><h1>Perfil LEGADO</h1><div className="account-panel"><div className="account-avatar">LF</div><div><h2>Jugador local</h2><p>Tus carreras, pronósticos, idioma y preferencias se guardan en este dispositivo.</p><button className="portal-primary" onClick={() => go("juegos")}>Abrir mi carrera</button></div></div><p className="portal-muted">El registro online y la sincronización entre dispositivos requieren un backend de autenticación; la interfaz ya queda preparada para conectarlo.</p></section>}
+    {section === "cuenta" && <section className="portal-content account-page"><span className="portal-kicker">TU ESPACIO</span><h1>Perfil LEGADO</h1><div className="account-panel"><div className="account-avatar">LF</div><div><h2>Jugador local</h2><p>Tus carreras, pronósticos, idioma y preferencias se guardan en este dispositivo.</p><button className="portal-primary" onClick={() => go("juegos")}>Abrir mi carrera</button></div></div><div className="api-config"><div><span className="portal-kicker">DATOS DEPORTIVOS</span><h2>Conectar API-Football v3</h2><p>Usa tu plan gratuito de 100 consultas diarias. La página realiza dos consultas y conserva los resultados durante 15 minutos.</p></div><div className="api-config-grid"><label>Clave API<input type="password" autoComplete="off" placeholder="x-apisports-key" value={apiSettings.apiKey} onChange={(e) => setApiSettings({ ...apiSettings, apiKey: e.target.value })} /></label><label>ID de liga<input inputMode="numeric" value={apiSettings.leagueId} onChange={(e) => setApiSettings({ ...apiSettings, leagueId: e.target.value })} /></label><label>Temporada<input inputMode="numeric" value={apiSettings.season} onChange={(e) => setApiSettings({ ...apiSettings, season: e.target.value })} /></label><label>Zona horaria<input value={apiSettings.timezone} onChange={(e) => setApiSettings({ ...apiSettings, timezone: e.target.value })} /></label></div><div className="api-config-actions"><button className="portal-primary" onClick={connectApiFootball}>Guardar y probar conexión</button><small>{apiMessage}</small></div></div><p className="portal-muted">Para producción con muchos visitantes, configura un proxy seguro mediante VITE_API_FOOTBALL_PROXY_URL; así la clave no se entrega al navegador. El registro online y la sincronización entre dispositivos requieren un backend.</p></section>}
 
     <div className="portal-footer"><button className="portal-brand" onClick={() => go("inicio")}><b>LEGADO</b><em>FC</em></button><span>Resultados · Estadísticas · Análisis · Juegos</span><span>© 2026 LEGADO FC</span></div>
     {!cookies && <section className="cookie-banner" aria-label="Preferencias de cookies"><div><strong>Cookies y privacidad</strong><p>Usamos almacenamiento local para guardar tu carrera, prode, idioma y preferencias. Los datos deportivos se consultan a un proveedor externo.</p></div><div><button onClick={() => { localStorage.setItem("legado:cookies", "essential"); setCookies("essential"); }}>Solo esenciales</button><button className="portal-primary" onClick={() => { localStorage.setItem("legado:cookies", "accepted"); setCookies("accepted"); }}>Aceptar</button></div></section>}
