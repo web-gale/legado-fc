@@ -1075,6 +1075,19 @@ select:focus-visible {
 .match-status.live { color: var(--orange); }
 .api-state { flex-shrink: 0; padding: 8px 12px; border: 1px solid var(--border); color: var(--muted); font-size: 9px; font-weight: 800; }
 .api-state.live { color: #61d095; border-color: #286242; }
+.sports-ribbon { border-block: 1px solid var(--border); background: var(--panel); padding: 12px 4vw; }
+.sport-selector { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: thin; padding: 3px 0 8px; }
+.sport-selector button { min-width: max-content; min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; }
+.sport-selector button span { font-size: 20px; }
+.sport-selector button strong { font-size: 10px; letter-spacing: .04em; }
+.sport-selector button.active { border-color: var(--orange); color: var(--text); background: color-mix(in srgb, var(--orange) 10%, var(--bg)); box-shadow: inset 0 -2px var(--orange); }
+.sport-selector button:disabled, .api-config-actions button:disabled { opacity: .55; cursor: wait; }
+.portal-section-head p { max-width: 740px; color: var(--muted); line-height: 1.55; }
+.coverage-note { min-height: 270px; display: grid; place-content: center; text-align: center; padding: 28px; }
+.coverage-note > b { font-size: 54px; }
+.coverage-note h3 { margin: 12px 0 0; font-size: 25px; }
+.coverage-note p, .coverage-note small { color: var(--muted); line-height: 1.55; }
+.api-sport-config { margin-top: 22px; }
 .api-config { margin-top: 28px; padding: clamp(22px, 4vw, 38px); border: 1px solid var(--border); background: var(--panel); }
 .api-config h2 { margin: 8px 0; }
 .api-config p { color: var(--muted); max-width: 760px; }

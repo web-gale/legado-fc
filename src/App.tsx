@@ -9,10 +9,13 @@ import {
 import { COUNTRIES, POSITION_LABELS, SEASON_PHASES } from "./game/data";
 import { resolveClubCrest } from "./game/crests";
 import {
-  getApiFootballSettings,
+  getApiSportsSettings,
   loadSportsSnapshot,
-  saveApiFootballSettings,
-  type ApiFootballSettings,
+  saveApiSportsSettings,
+  testApiSportsConnection,
+  SPORTS,
+  type ApiSportsSettings,
+  type SportId,
   type SportsSnapshot,
 } from "./sports/api";
 import {
@@ -985,28 +988,41 @@ function CareerGame() {
   );
 }
 
-type PortalSection = "inicio" | "futbol" | "juegos" | "prode" | "analisis" | "cuenta";
+type PortalSection = "inicio" | "deportes" | "juegos" | "prode" | "analisis" | "cuenta";
 type PortalLanguage = "ES" | "EN" | "PT";
 
 const portalCopy = {
-  ES: { live: "Partidos y datos", games: "Juegos", prediction: "Prode", analysis: "Análisis", play: "Jugar modo carrera", headline: "El fútbol se mira. El legado se construye.", intro: "Resultados, estadísticas, análisis y el simulador de carrera de LEGADO FC en una sola plataforma." },
-  EN: { live: "Matches & data", games: "Games", prediction: "Predictions", analysis: "Analysis", play: "Play career mode", headline: "Football is watched. Legacy is built.", intro: "Results, statistics, analysis and the LEGADO FC career simulator in one platform." },
-  PT: { live: "Jogos e dados", games: "Jogos", prediction: "Bolão", analysis: "Análises", play: "Jogar modo carreira", headline: "O futebol é visto. O legado é construído.", intro: "Resultados, estatísticas, análises e o simulador de carreira LEGADO FC em uma única plataforma." },
+  ES: { live: "Deportes en vivo", games: "Juegos", prediction: "Prode", analysis: "Análisis", play: "Jugar modo carrera", headline: "Todo el deporte. Un solo legado.", intro: "Resultados mundiales, estadísticas, análisis y juegos de fútbol, básquetbol, tenis motor, béisbol, hockey, rugby y mucho más." },
+  EN: { live: "Live sports", games: "Games", prediction: "Predictions", analysis: "Analysis", play: "Play career mode", headline: "Every sport. One legacy.", intro: "Worldwide scores, stats, analysis and games across football, basketball, motorsport, baseball, hockey, rugby and more." },
+  PT: { live: "Esportes ao vivo", games: "Jogos", prediction: "Bolão", analysis: "Análises", play: "Jogar modo carreira", headline: "Todo esporte. Um só legado.", intro: "Resultados mundiais, estatísticas, análises e jogos de futebol, basquete, automobilismo, beisebol, hóquei, rúgbi e muito mais." },
 };
 
 const articles = [
   { tag: "ANÁLISIS", title: "Por qué los mediapuntas vuelven a decidir partidos", text: "Cómo cambian los espacios entre líneas y qué atributos hacen diferencial a un creador moderno." },
-  { tag: "HISTORIA", title: "Las carreras que transformaron a un club para siempre", text: "Ídolos, capitanes y temporadas que explican por qué un legado vale más que una estadística." },
-  { tag: "DATOS", title: "Goles esperados sin complicaciones", text: "Una guía visual para entender cuándo un equipo domina de verdad y cuándo el resultado engaña." },
+  { tag: "BÁSQUETBOL", title: "El ritmo que define un partido cerrado", text: "Posesiones, eficiencia y decisiones que explican por qué una ventaja cambia en segundos." },
+  { tag: "MOTOR", title: "Una vuelta perfecta se construye por sectores", text: "La lectura simple de ritmo, neumáticos y estrategia para vivir cada Gran Premio con otros ojos." },
+  { tag: "HISTORIA", title: "Las carreras que transformaron su deporte", text: "Ídolos, capitanes y campeones que convirtieron una temporada en un legado mundial." },
+  { tag: "RUGBY", title: "Territorio, posesión y presión", text: "Las métricas que revelan quién controla de verdad un partido internacional." },
+  { tag: "DATOS", title: "Estadísticas deportivas sin complicaciones", text: "Una guía visual para interpretar resultados y rendimiento más allá del marcador." },
 ];
 
 function PortalCrest({ src, name }: { src?: string; name: string }) {
   return src ? <img className="portal-badge" src={src} alt="" /> : <span className="portal-badge fallback">{name.slice(0, 2).toUpperCase()}</span>;
 }
 
-function MatchCenter({ snapshot }: { snapshot: SportsSnapshot }) {
+function SportSelector({ selected, select, busy = false }: { selected: SportId; select: (sport: SportId) => void; busy?: boolean }) {
+  return <div className="sport-selector" aria-label="Elegir deporte">
+    {SPORTS.map(sport => <button key={sport.id} className={selected === sport.id ? "active" : ""} disabled={busy} onClick={() => select(sport.id)}>
+      <span>{sport.emoji}</span><strong>{sport.label}</strong>
+    </button>)}
+  </div>;
+}
+
+function MatchCenter({ snapshot, selectSport, busy }: { snapshot: SportsSnapshot; selectSport: (sport: SportId) => void; busy: boolean }) {
+  const definition = SPORTS.find(sport => sport.id === snapshot.sport) ?? SPORTS[0];
   return <section className="portal-content">
-    <div className="portal-section-head"><div><span className="portal-kicker">CENTRO DE PARTIDOS · API-FOOTBALL</span><h1>Todo el fútbol, en una pantalla.</h1></div><span className={`api-state ${snapshot.source}`}>{snapshot.source === "live" ? `● Datos oficiales${snapshot.quotaRemaining !== undefined ? ` · ${snapshot.quotaRemaining} consultas` : ""}` : snapshot.source === "cache" ? "● Última actualización guardada" : "● Configura la API gratuita"}</span></div>
+    <div className="portal-section-head"><div><span className="portal-kicker">CENTRO MUNDIAL · {definition.apiLabel.toUpperCase()}</span><h1>{definition.emoji} {definition.label} en vivo.</h1><p>{snapshot.message}</p></div><span className={`api-state ${snapshot.source}`}>{busy ? "● Actualizando…" : snapshot.source === "live" ? `● API conectada${snapshot.quotaRemaining !== undefined ? ` · ${snapshot.quotaRemaining} consultas` : ""}` : snapshot.source === "cache" ? "● Última actualización guardada" : "● Datos de demostración"}</span></div>
+    <SportSelector selected={snapshot.sport} select={selectSport} busy={busy} />
     <div className="match-layout">
       <div className="match-list">
         {snapshot.matches.map(match => <article className="match-card" key={match.id}>
@@ -1017,10 +1033,10 @@ function MatchCenter({ snapshot }: { snapshot: SportsSnapshot }) {
         </article>)}
       </div>
       <aside className="standings-card">
-        <div className="standings-title"><span>TABLA</span><strong>Clasificación</strong></div>
+        <div className="standings-title"><span>{snapshot.standings.length ? "TABLA" : "COBERTURA"}</span><strong>{snapshot.standings.length ? "Clasificación" : definition.label}</strong></div>
         {snapshot.standings.length ? snapshot.standings.map(row => <div className="standing-row" key={`${row.rank}-${row.team}`}>
           <b>{row.rank}</b><PortalCrest src={row.badge} name={row.team} /><span>{row.team}</span><small>{row.played} PJ</small><strong>{row.points}</strong>
-        </div>) : <p className="portal-muted">La tabla aparecerá cuando el proveedor publique la temporada activa.</p>}
+        </div>) : <div className="coverage-note"><b>{definition.emoji}</b><h3>Cobertura mundial</h3><p>Calendarios, resultados y eventos de {definition.label.toLowerCase()} desde competiciones de todo el mundo.</p><small>Fuente: API‑SPORTS · caché de 15 minutos</small></div>}
       </aside>
     </div>
   </section>;
@@ -1042,53 +1058,87 @@ function PredictionGame({ matches }: { matches: SportsSnapshot["matches"] }) {
 }
 
 export default function App() {
-  const [section, setSection] = useState<PortalSection>(() => (location.hash.replace("#", "") as PortalSection) || "inicio");
+  const [section, setSection] = useState<PortalSection>(() => location.hash === "#futbol" ? "deportes" : (location.hash.replace("#", "") as PortalSection) || "inicio");
   const [language, setLanguage] = useState<PortalLanguage>(() => (localStorage.getItem("legado:language") as PortalLanguage) || "ES");
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("legado:portal-theme") as "dark" | "light") || "dark");
   const [cookies, setCookies] = useState(() => localStorage.getItem("legado:cookies") || "");
-  const [sports, setSports] = useState<SportsSnapshot>({ matches: [], standings: [], source: "demo", provider: "API-Football", updatedAt: new Date().toISOString() });
-  const [apiSettings, setApiSettings] = useState<ApiFootballSettings>(() => getApiFootballSettings());
+  const initialSettings = useMemo(() => getApiSportsSettings(), []);
+  const [sports, setSports] = useState<SportsSnapshot>({ sport: initialSettings.sport, matches: [], standings: [], source: "demo", provider: "API-SPORTS", updatedAt: new Date().toISOString() });
+  const [apiSettings, setApiSettings] = useState<ApiSportsSettings>(initialSettings);
   const [apiMessage, setApiMessage] = useState("La clave se guarda únicamente en este navegador.");
+  const [sportsBusy, setSportsBusy] = useState(false);
   const c = portalCopy[language];
-  useEffect(() => { loadSportsSnapshot().then(setSports); }, []);
+  useEffect(() => { loadSportsSnapshot(false, initialSettings.sport).then(setSports); }, [initialSettings.sport]);
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem("legado:portal-theme", theme); }, [theme]);
   const go = (next: PortalSection) => { setSection(next); location.hash = next; scrollTo({ top: 0, behavior: "smooth" }); };
   const setLang = (next: PortalLanguage) => { setLanguage(next); localStorage.setItem("legado:language", next); };
-  const connectApiFootball = async () => {
-    saveApiFootballSettings(apiSettings);
-    setApiMessage("Conectando con API-Football…");
-    const snapshot = await loadSportsSnapshot(true);
+  const selectSport = async (sport: SportId) => {
+    const next = { ...apiSettings, sport };
+    setApiSettings(next);
+    saveApiSportsSettings(next);
+    setSportsBusy(true);
+    setSports(await loadSportsSnapshot(false, sport));
+    setSportsBusy(false);
+  };
+  const connectApiSports = async () => {
+    saveApiSportsSettings(apiSettings);
+    setApiMessage("Validando la cuenta de API‑SPORTS…");
+    setSportsBusy(true);
+    const test = await testApiSportsConnection(apiSettings);
+    if (!test.ok) {
+      setApiMessage(test.message);
+      setSportsBusy(false);
+      return;
+    }
+    const snapshot = await loadSportsSnapshot(true, apiSettings.sport);
     setSports(snapshot);
-    setApiMessage(snapshot.source === "live" ? "API-Football conectada correctamente." : "No se pudo validar la clave o no hay partidos disponibles hoy; se mantienen los datos de respaldo.");
+    setSportsBusy(false);
+    setApiMessage(`${test.message}${snapshot.message ? ` ${snapshot.message}` : ""}`);
   };
 
   if (section === "juegos") return <div className="portal-game"><button className="back-portal" onClick={() => go("inicio")}>← Volver a LEGADO FC</button><CareerGame /></div>;
 
   return <main className="portal-shell">
-    <div className="portal-topline"><span>LEGADO FC · FÚTBOL, DATOS Y JUEGOS</span><div>{(["ES", "EN", "PT"] as const).map(lang => <button key={lang} className={language === lang ? "active" : ""} onClick={() => setLang(lang)}>{lang}</button>)}</div></div>
+    <div className="portal-topline"><span>LEGADO FC · DEPORTES MUNDIALES, DATOS Y JUEGOS</span><div>{(["ES", "EN", "PT"] as const).map(lang => <button key={lang} className={language === lang ? "active" : ""} onClick={() => setLang(lang)}>{lang}</button>)}</div></div>
     <div className="portal-header">
-      <button className="portal-brand" onClick={() => go("inicio")}><b>LEGADO</b><em>FC</em><small>FÚTBOL SIN FECHA DE VENCIMIENTO</small></button>
+      <button className="portal-brand" onClick={() => go("inicio")}><b>LEGADO</b><em>FC</em><small>EL DEPORTE DEJA LEGADO</small></button>
       <nav className="portal-nav">
-        {(["inicio", "futbol", "juegos", "prode", "analisis"] as PortalSection[]).map(item => <button className={section === item ? "active" : ""} onClick={() => go(item)} key={item}>{item === "futbol" ? c.live : item === "juegos" ? c.games : item === "prode" ? c.prediction : item === "analisis" ? c.analysis : "Inicio"}</button>)}
+        {(["inicio", "deportes", "juegos", "prode", "analisis"] as PortalSection[]).map(item => <button className={section === item ? "active" : ""} onClick={() => go(item)} key={item}>{item === "deportes" ? c.live : item === "juegos" ? c.games : item === "prode" ? c.prediction : item === "analisis" ? c.analysis : "Inicio"}</button>)}
       </nav>
       <div className="portal-actions"><button aria-label="Cambiar tema" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? "☾" : "☀"}</button><button className="account-button" onClick={() => go("cuenta")}>Mi perfil</button></div>
     </div>
 
     {section === "inicio" && <>
       <section className="portal-hero">
-        <div><span className="portal-kicker">EL JUEGO RECIÉN EMPIEZA</span><h1>{c.headline}</h1><p>{c.intro}</p><div className="hero-actions"><button className="portal-primary" onClick={() => go("juegos")}>{c.play} →</button><button className="portal-secondary" onClick={() => go("futbol")}>Ver resultados</button></div></div>
-        <div className="hero-scoreboard"><span>PARTIDO DESTACADO</span>{sports.matches[0] ? <><div><strong>{sports.matches[0].home}</strong><b>{sports.matches[0].homeScore ?? "—"}</b></div><div><strong>{sports.matches[0].away}</strong><b>{sports.matches[0].awayScore ?? "—"}</b></div><small>{sports.matches[0].league} · {sports.matches[0].date}</small></> : <p>Cargando centro de partidos…</p>}</div>
+        <div><span className="portal-kicker">UNA VENTANA AL DEPORTE MUNDIAL</span><h1>{c.headline}</h1><p>{c.intro}</p><div className="hero-actions"><button className="portal-primary" onClick={() => go("deportes")}>Ver deportes en vivo →</button><button className="portal-secondary" onClick={() => go("juegos")}>{c.play}</button></div></div>
+        <div className="hero-scoreboard"><span>{SPORTS.find(s => s.id === sports.sport)?.emoji} EVENTO DESTACADO</span>{sports.matches[0] ? <><div><strong>{sports.matches[0].home}</strong><b>{sports.matches[0].homeScore ?? "—"}</b></div><div><strong>{sports.matches[0].away}</strong><b>{sports.matches[0].awayScore ?? "—"}</b></div><small>{sports.matches[0].league} · {sports.matches[0].date}</small></> : <p>Cargando centro mundial…</p>}</div>
       </section>
-      <section className="portal-strip"><div><b>01</b><span>RESULTADOS</span><small>Partidos y calendarios</small></div><div><b>02</b><span>ESTADÍSTICAS</span><small>Tablas y rendimiento</small></div><div><b>03</b><span>MODO CARRERA</span><small>Construí tu legado</small></div><div><b>04</b><span>PRODE</span><small>Jugá tus pronósticos</small></div></section>
+      <section className="sports-ribbon"><SportSelector selected={sports.sport} select={(sport) => { selectSport(sport); go("deportes"); }} busy={sportsBusy} /></section>
+      <section className="portal-strip"><div><b>01</b><span>RESULTADOS MUNDIALES</span><small>Eventos y calendarios</small></div><div><b>02</b><span>11 DEPORTES</span><small>Una experiencia unificada</small></div><div><b>03</b><span>MODO CARRERA</span><small>El juego original de fútbol</small></div><div><b>04</b><span>PRODE</span><small>Pronósticos deportivos</small></div></section>
       <section className="featured-game"><div><span className="portal-kicker">MINIJUEGO PRINCIPAL</span><h2>Construí tu propia carrera futbolística</h2><p>Elegí tu origen, posición y dificultad. Tomá decisiones, cambiá de club y convertí cada temporada en una historia única.</p><div className="difficulty-pills"><span>Fácil · Éxito total</span><span>Normal · Carrera legendaria</span><span>Difícil · Máximo desafío</span></div><button className="portal-primary" onClick={() => go("juegos")}>Empezar carrera →</button></div><div className="career-poster"><span>LEGADO</span><strong>TU NOMBRE<br/>EN LA HISTORIA</strong><small>Simulador de carrera · Temporada 2026</small></div></section>
-      <section className="portal-articles"><div className="portal-section-head"><div><span className="portal-kicker">LECTURA DE JUEGO</span><h2>Análisis con identidad</h2></div><button onClick={() => go("analisis")}>Ver todo →</button></div><div className="article-grid">{articles.map((a, i) => <article key={a.title}><span>0{i + 1} · {a.tag}</span><h3>{a.title}</h3><p>{a.text}</p></article>)}</div></section>
+      <section className="portal-articles"><div className="portal-section-head"><div><span className="portal-kicker">LECTURA DEPORTIVA</span><h2>Análisis sin fronteras</h2></div><button onClick={() => go("analisis")}>Ver todo →</button></div><div className="article-grid">{articles.slice(0, 3).map((a, i) => <article key={a.title}><span>0{i + 1} · {a.tag}</span><h3>{a.title}</h3><p>{a.text}</p></article>)}</div></section>
     </>}
-    {section === "futbol" && <MatchCenter snapshot={sports} />}
+    {section === "deportes" && <MatchCenter snapshot={sports} selectSport={selectSport} busy={sportsBusy} />}
     {section === "prode" && <PredictionGame matches={sports.matches} />}
-    {section === "analisis" && <section className="portal-content"><div className="portal-section-head"><div><span className="portal-kicker">ANÁLISIS, HISTORIA Y DATOS</span><h1>Entender el juego cambia cómo lo vivís.</h1></div></div><div className="analysis-grid">{[...articles, ...articles].map((a, i) => <article key={`${a.title}-${i}`}><span>{a.tag} · LECTURA {i + 1}</span><h2>{a.title}</h2><p>{a.text}</p><button>Leer análisis →</button></article>)}</div></section>}
-    {section === "cuenta" && <section className="portal-content account-page"><span className="portal-kicker">TU ESPACIO</span><h1>Perfil LEGADO</h1><div className="account-panel"><div className="account-avatar">LF</div><div><h2>Jugador local</h2><p>Tus carreras, pronósticos, idioma y preferencias se guardan en este dispositivo.</p><button className="portal-primary" onClick={() => go("juegos")}>Abrir mi carrera</button></div></div><div className="api-config"><div><span className="portal-kicker">DATOS DEPORTIVOS</span><h2>Conectar API-Football v3</h2><p>Usa tu plan gratuito de 100 consultas diarias. La página realiza dos consultas y conserva los resultados durante 15 minutos.</p></div><div className="api-config-grid"><label>Clave API<input type="password" autoComplete="off" placeholder="x-apisports-key" value={apiSettings.apiKey} onChange={(e) => setApiSettings({ ...apiSettings, apiKey: e.target.value })} /></label><label>ID de liga<input inputMode="numeric" value={apiSettings.leagueId} onChange={(e) => setApiSettings({ ...apiSettings, leagueId: e.target.value })} /></label><label>Temporada<input inputMode="numeric" value={apiSettings.season} onChange={(e) => setApiSettings({ ...apiSettings, season: e.target.value })} /></label><label>Zona horaria<input value={apiSettings.timezone} onChange={(e) => setApiSettings({ ...apiSettings, timezone: e.target.value })} /></label></div><div className="api-config-actions"><button className="portal-primary" onClick={connectApiFootball}>Guardar y probar conexión</button><small>{apiMessage}</small></div></div><p className="portal-muted">Para producción con muchos visitantes, configura un proxy seguro mediante VITE_API_FOOTBALL_PROXY_URL; así la clave no se entrega al navegador. El registro online y la sincronización entre dispositivos requieren un backend.</p></section>}
+    {section === "analisis" && <section className="portal-content"><div className="portal-section-head"><div><span className="portal-kicker">ANÁLISIS, HISTORIA Y DATOS</span><h1>Entender el deporte cambia cómo lo vivís.</h1></div></div><div className="analysis-grid">{articles.map((a, i) => <article key={`${a.title}-${i}`}><span>{a.tag} · LECTURA {i + 1}</span><h2>{a.title}</h2><p>{a.text}</p><button>Leer análisis →</button></article>)}</div></section>}
+    {section === "cuenta" && <section className="portal-content account-page">
+      <span className="portal-kicker">TU ESPACIO</span><h1>Perfil LEGADO</h1>
+      <div className="account-panel"><div className="account-avatar">LF</div><div><h2>Jugador local</h2><p>Tus carreras, pronósticos, idioma y preferencias se guardan en este dispositivo.</p><button className="portal-primary" onClick={() => go("juegos")}>Abrir mi carrera</button></div></div>
+      <div className="api-config">
+        <div><span className="portal-kicker">DATOS DEPORTIVOS MUNDIALES</span><h2>Conectar API‑SPORTS</h2><p>Una sola configuración para consultar fútbol, básquetbol, NBA, béisbol, Fórmula 1, handball, hockey, MMA, NFL/NCAA, rugby, vóley y AFL. Se consulta solo el deporte elegido y se guarda caché durante 15 minutos.</p></div>
+        <div className="api-sport-config"><SportSelector selected={apiSettings.sport} select={(sport) => setApiSettings({ ...apiSettings, sport })} /></div>
+        <div className="api-config-grid">
+          <label>Clave API<input type="password" autoComplete="off" placeholder="x-apisports-key" value={apiSettings.apiKey} onChange={(e) => setApiSettings({ ...apiSettings, apiKey: e.target.value })} /></label>
+          {apiSettings.sport === "football" && <label>ID de liga<input inputMode="numeric" value={apiSettings.leagueId} onChange={(e) => setApiSettings({ ...apiSettings, leagueId: e.target.value })} /></label>}
+          <label>Temporada<input inputMode="numeric" value={apiSettings.season} onChange={(e) => setApiSettings({ ...apiSettings, season: e.target.value })} /></label>
+          <label>Zona horaria<input value={apiSettings.timezone} onChange={(e) => setApiSettings({ ...apiSettings, timezone: e.target.value })} /></label>
+        </div>
+        <div className="api-config-actions"><button className="portal-primary" disabled={sportsBusy} onClick={connectApiSports}>{sportsBusy ? "Probando…" : "Guardar y probar API mundial"}</button><small>{apiMessage}</small></div>
+      </div>
+      <p className="portal-muted">La prueba de cuenta y la carga de eventos son independientes: que hoy no haya encuentros ya no se mostrará como una clave inválida. Para una publicación masiva configura VITE_API_SPORTS_PROXY_URL y protege la clave con la lista blanca de dominios del proveedor.</p>
+    </section>}
 
-    <div className="portal-footer"><button className="portal-brand" onClick={() => go("inicio")}><b>LEGADO</b><em>FC</em></button><span>Resultados · Estadísticas · Análisis · Juegos</span><span>© 2026 LEGADO FC</span></div>
+    <div className="portal-footer"><button className="portal-brand" onClick={() => go("inicio")}><b>LEGADO</b><em>FC</em></button><span>Deportes mundiales · Resultados · Estadísticas · Análisis · Juegos</span><span>© 2026 LEGADO FC</span></div>
     {!cookies && <section className="cookie-banner" aria-label="Preferencias de cookies"><div><strong>Cookies y privacidad</strong><p>Usamos almacenamiento local para guardar tu carrera, prode, idioma y preferencias. Los datos deportivos se consultan a un proveedor externo.</p></div><div><button onClick={() => { localStorage.setItem("legado:cookies", "essential"); setCookies("essential"); }}>Solo esenciales</button><button className="portal-primary" onClick={() => { localStorage.setItem("legado:cookies", "accepted"); setCookies("accepted"); }}>Aceptar</button></div></section>}
   </main>;
 }

@@ -9,15 +9,19 @@ test("la compilación estática contiene el juego y usa rutas relativas", async 
   assert.doesNotMatch(html, /src="\/assets\//);
 });
 
-test("el portal publica la capa de datos deportivos y conserva el modo carrera", async () => {
+test("el portal publica la capa multideporte y conserva el modo carrera", async () => {
   const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
   const asset = html.match(/src="\.\/assets\/(.+?\.js)"/)?.[1];
   assert.ok(asset);
   const js = await readFile(new URL(`../dist/assets/${asset}`, import.meta.url), "utf8");
   assert.match(js, /LEGADO FC/);
   assert.match(js, /v3\.football\.api-sports\.io/);
+  assert.match(js, /v1\.basketball\.api-sports\.io/);
+  assert.match(js, /v1\.formula-1\.api-sports\.io/);
+  assert.match(js, /API-SPORTS/);
   assert.match(js, /x-apisports-key/);
-  assert.match(js, /API-Football conectada correctamente/);
+  assert.match(js, /Todo el deporte/);
+  assert.match(js, /Guardar y probar API mundial/);
   assert.match(js, /legado:prode/);
   assert.match(js, /Noche de campeones/);
 });
