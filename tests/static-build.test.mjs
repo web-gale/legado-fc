@@ -15,7 +15,9 @@ test("el portal publica la capa de datos deportivos y conserva el modo carrera",
   assert.ok(asset);
   const js = await readFile(new URL(`../dist/assets/${asset}`, import.meta.url), "utf8");
   assert.match(js, /LEGADO FC/);
-  assert.match(js, /eventspastleague\.php/);
+  assert.match(js, /v3\.football\.api-sports\.io/);
+  assert.match(js, /x-apisports-key/);
+  assert.match(js, /API-Football conectada correctamente/);
   assert.match(js, /legado:prode/);
   assert.match(js, /Noche de campeones/);
 });
